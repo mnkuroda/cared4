@@ -34,15 +34,30 @@ create table if not exists public.trips (
 create index if not exists trips_household_idx
   on public.trips (household_id, created_at desc);
 
+create table if not exists public.assignments (
+  id uuid primary key,
+  household_id text not null references public.households (id) on delete cascade,
+  trip_id uuid not null references public.trips (id) on delete cascade,
+  care_date date not null,
+  care_time text not null,
+  person_name text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists assignments_household_date_idx
+  on public.assignments (household_id, care_date, care_time);
+
 alter table public.households enable row level security;
 alter table public.check_ins enable row level security;
 alter table public.trips enable row level security;
+alter table public.assignments enable row level security;
 
 -- API roles need table privileges in addition to RLS policies.
 grant usage on schema public to anon, authenticated;
 grant select, insert, update on public.households to anon, authenticated;
 grant select, insert on public.check_ins to anon, authenticated;
 grant select, insert, update, delete on public.trips to anon, authenticated;
+grant select, insert, delete on public.assignments to anon, authenticated;
 
 -- Share-link model: anyone with the household code can read/write.
 -- Fine for a private pet-care helper link; not for sensitive data.
@@ -67,3 +82,10 @@ create policy "trips_select" on public.trips for select using (true);
 create policy "trips_insert" on public.trips for insert with check (true);
 create policy "trips_update" on public.trips for update using (true) with check (true);
 create policy "trips_delete" on public.trips for delete using (true);
+
+drop policy if exists "assignments_select" on public.assignments;
+drop policy if exists "assignments_insert" on public.assignments;
+drop policy if exists "assignments_delete" on public.assignments;
+create policy "assignments_select" on public.assignments for select using (true);
+create policy "assignments_insert" on public.assignments for insert with check (true);
+create policy "assignments_delete" on public.assignments for delete using (true);

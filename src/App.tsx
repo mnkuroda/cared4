@@ -31,6 +31,8 @@ export default function App() {
     leaveHousehold,
     isOwner,
     claimScheduleControl,
+    saveAssignments,
+    removeAssignment,
   } = useHousehold()
   const [tab, setTab] = useState<TabId>('calendar')
 
@@ -88,21 +90,36 @@ export default function App() {
           <CareCalendar
             trips={household.trips}
             checkIns={household.checkIns}
+            assignments={household.assignments}
             onCheckIn={() => setTab('checkin')}
           />
         )}
         {tab === 'checkin' && (
-          <CheckInForm tasks={household.tasks} onSubmit={addCheckIn} />
+          <CheckInForm
+            tasks={household.tasks}
+            knownNames={[
+              ...household.checkIns.map((entry) => entry.personName),
+              ...household.assignments.map((entry) => entry.personName),
+            ]}
+            onSubmit={addCheckIn}
+          />
         )}
         {tab === 'log' && <ActivityLog checkIns={household.checkIns} />}
         {tab === 'schedule' && (
           <ScheduleView
             trips={household.trips}
             tasks={household.tasks}
+            assignments={household.assignments}
+            knownNames={[
+              ...household.checkIns.map((entry) => entry.personName),
+              ...household.assignments.map((entry) => entry.personName),
+            ]}
             canManage={isOwner}
             onAdd={addTrip}
             onUpdate={updateTrip}
             onDelete={deleteTrip}
+            onSaveAssignments={saveAssignments}
+            onRemoveAssignment={removeAssignment}
             onClaimControl={isOwner ? undefined : claimScheduleControl}
           />
         )}

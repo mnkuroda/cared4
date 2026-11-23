@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   createHouseholdRemote,
+  deleteAssignmentRemote,
+  deleteAssignmentsForSlots,
   deleteTripRemote,
   fetchHousehold,
+  insertAssignments,
   insertCheckIn,
   insertTrip,
   subscribeHousehold,
@@ -19,7 +22,7 @@ import {
   markHouseholdOwner,
   rememberHouseholdId,
 } from '../storage'
-import type { CheckIn, Household, Trip } from '../types'
+import type { Assignment, CheckIn, Household, Trip } from '../types'
 
 function householdFromUrl(): string | null {
   const params = new URLSearchParams(window.location.search)
@@ -261,6 +264,59 @@ export function useHousehold() {
     setError(null)
   }, [household])
 
+  const saveAssignments = useCallback(
+    async (next: Assignment[]) => {
+      if (!household || !isHouseholdOwner(household.id)) {
+        setError('Only the household creator can assign helpers.')
+        return
+      }
+      if (next.length === 0) return
+      setError(null)
+      const tripId = next[0].tripId
+      const date = next[0].date
+      const times = next.map((item) => item.time)
+      const kept = household.assignments.filter(
+        (item) =>
+          !(item.tripId === tripId && item.date === date && times.includes(item.time)),
+      )
+      setHousehold({
+        ...household,
+        assignments: [...kept, ...next].sort((a, b) =>
+          a.date === b.date ? a.time.localeCompare(b.time) : a.date.localeCompare(b.date),
+        ),
+      })
+      try {
+        await deleteAssignmentsForSlots(household.id, tripId, date, times)
+        await insertAssignments(household.id, next)
+      } catch (err) {
+        setError(errorMessage(err, 'Could not save assignments.'))
+        await refresh(household.id)
+      }
+    },
+    [household, refresh],
+  )
+
+  const removeAssignment = useCallback(
+    async (assignmentId: string) => {
+      if (!household || !isHouseholdOwner(household.id)) {
+        setError('Only the household creator can change assignments.')
+        return
+      }
+      setError(null)
+      setHousehold({
+        ...household,
+        assignments: household.assignments.filter((item) => item.id !== assignmentId),
+      })
+      try {
+        await deleteAssignmentRemote(assignmentId)
+      } catch (err) {
+        setError(errorMessage(err, 'Could not remove assignment.'))
+        await refresh(household.id)
+      }
+    },
+    [household, refresh],
+  )
+
   return {
     household,
     ready,
@@ -276,5 +332,7 @@ export function useHousehold() {
     deleteTrip,
     leaveHousehold,
     claimScheduleControl,
+    saveAssignments,
+    removeAssignment,
   }
 }

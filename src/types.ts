@@ -38,12 +38,22 @@ export interface Trip {
   slots: ScheduleSlot[]
 }
 
+/** Who is covering a specific care time on a specific day. */
+export interface Assignment {
+  id: string
+  tripId: string
+  date: string
+  time: string
+  personName: string
+}
+
 export interface Household {
   id: string
   name: string
   tasks: string[]
   checkIns: CheckIn[]
   trips: Trip[]
+  assignments: Assignment[]
   createdAt: string
 }
 

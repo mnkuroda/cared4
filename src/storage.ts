@@ -23,6 +23,7 @@ export function createHousehold(name: string): Household {
     tasks: [...DEFAULT_TASKS],
     checkIns: [],
     trips: [],
+    assignments: [],
     createdAt: new Date().toISOString(),
   }
 }
@@ -52,12 +53,38 @@ export function isHouseholdOwner(householdId: string): boolean {
   return localStorage.getItem(ownerKey(householdId)) === '1'
 }
 
+const KNOWN_NAMES_KEY = 'cared4:knownNames'
+
 export function getRememberedName(): string {
   return localStorage.getItem(LAST_NAME_KEY) ?? ''
 }
 
 export function rememberName(name: string): void {
-  localStorage.setItem(LAST_NAME_KEY, name.trim())
+  const trimmed = name.trim()
+  if (!trimmed) return
+  localStorage.setItem(LAST_NAME_KEY, trimmed)
+  rememberKnownName(trimmed)
+}
+
+export function getKnownNames(): string[] {
+  try {
+    const raw = localStorage.getItem(KNOWN_NAMES_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      .map((item) => item.trim())
+  } catch {
+    return []
+  }
+}
+
+export function rememberKnownName(name: string): void {
+  const trimmed = name.trim()
+  if (!trimmed) return
+  const next = [trimmed, ...getKnownNames().filter((item) => item.toLowerCase() !== trimmed.toLowerCase())]
+  localStorage.setItem(KNOWN_NAMES_KEY, JSON.stringify(next.slice(0, 24)))
 }
 
 export function newCheckInId(): string {
@@ -69,6 +96,10 @@ export function newTripId(): string {
 }
 
 export function newSlotId(): string {
+  return makeId()
+}
+
+export function newAssignmentId(): string {
   return makeId()
 }
 

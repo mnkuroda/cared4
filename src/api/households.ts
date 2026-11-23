@@ -1,5 +1,12 @@
 import { supabase } from '../lib/supabase'
-import { DEFAULT_TASKS, normalizeSlot, type CheckIn, type Household, type Trip } from '../types'
+import {
+  DEFAULT_TASKS,
+  normalizeSlot,
+  type Assignment,
+  type CheckIn,
+  type Household,
+  type Trip,
+} from '../types'
 
 const REMOVED_TASKS = new Set(['Gave medication', 'Scooped litter'])
 
@@ -39,6 +46,15 @@ type TripRow = {
   notes: string
   slots: unknown
   created_at: string
+}
+
+type AssignmentRow = {
+  id: string
+  household_id: string
+  trip_id: string
+  care_date: string
+  care_time: string
+  person_name: string
 }
 
 function requireClient() {
@@ -86,6 +102,16 @@ function mapTrip(row: TripRow): Trip {
   }
 }
 
+function mapAssignment(row: AssignmentRow): Assignment {
+  return {
+    id: row.id,
+    tripId: row.trip_id,
+    date: row.care_date,
+    time: row.care_time,
+    personName: row.person_name,
+  }
+}
+
 export async function fetchHousehold(id: string): Promise<Household | null> {
   const client = requireClient()
   const cleaned = id.trim().toLowerCase()
@@ -101,22 +127,34 @@ export async function fetchHousehold(id: string): Promise<Household | null> {
 
   const household = row as HouseholdRow
 
-  const [{ data: checkInRows, error: checkInError }, { data: tripRows, error: tripError }] =
-    await Promise.all([
-      client
-        .from('check_ins')
-        .select('*')
-        .eq('household_id', cleaned)
-        .order('at', { ascending: false }),
-      client
-        .from('trips')
-        .select('*')
-        .eq('household_id', cleaned)
-        .order('created_at', { ascending: false }),
-    ])
+  const [
+    { data: checkInRows, error: checkInError },
+    { data: tripRows, error: tripError },
+    { data: assignmentRows, error: assignmentError },
+  ] = await Promise.all([
+    client
+      .from('check_ins')
+      .select('*')
+      .eq('household_id', cleaned)
+      .order('at', { ascending: false }),
+    client
+      .from('trips')
+      .select('*')
+      .eq('household_id', cleaned)
+      .order('created_at', { ascending: false }),
+    client
+      .from('assignments')
+      .select('*')
+      .eq('household_id', cleaned)
+      .order('care_date', { ascending: true }),
+  ])
 
   if (checkInError) throw checkInError
   if (tripError) throw tripError
+  // Allow loading before assignments.sql has been run.
+  if (assignmentError && assignmentError.code !== '42P01' && assignmentError.code !== 'PGRST205') {
+    throw assignmentError
+  }
 
   return {
     id: household.id,
@@ -125,6 +163,9 @@ export async function fetchHousehold(id: string): Promise<Household | null> {
     createdAt: household.created_at,
     checkIns: ((checkInRows ?? []) as CheckInRow[]).map(mapCheckIn),
     trips: ((tripRows ?? []) as TripRow[]).map(mapTrip),
+    assignments: assignmentError
+      ? []
+      : ((assignmentRows ?? []) as AssignmentRow[]).map(mapAssignment),
   }
 }
 
@@ -208,6 +249,49 @@ export async function deleteTripRemote(tripId: string): Promise<void> {
   if (error) throw error
 }
 
+export async function insertAssignments(
+  householdId: string,
+  assignments: Assignment[],
+): Promise<void> {
+  const client = requireClient()
+  if (assignments.length === 0) return
+  const { error } = await client.from('assignments').insert(
+    assignments.map((item) => ({
+      id: item.id,
+      household_id: householdId,
+      trip_id: item.tripId,
+      care_date: item.date,
+      care_time: item.time,
+      person_name: item.personName,
+    })),
+  )
+  if (error) throw error
+}
+
+export async function deleteAssignmentRemote(assignmentId: string): Promise<void> {
+  const client = requireClient()
+  const { error } = await client.from('assignments').delete().eq('id', assignmentId)
+  if (error) throw error
+}
+
+export async function deleteAssignmentsForSlots(
+  householdId: string,
+  tripId: string,
+  date: string,
+  times: string[],
+): Promise<void> {
+  const client = requireClient()
+  if (times.length === 0) return
+  const { error } = await client
+    .from('assignments')
+    .delete()
+    .eq('household_id', householdId)
+    .eq('trip_id', tripId)
+    .eq('care_date', date)
+    .in('care_time', times)
+  if (error) throw error
+}
+
 export function subscribeHousehold(
   householdId: string,
   onChange: () => void,
@@ -224,6 +308,11 @@ export function subscribeHousehold(
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'trips', filter: `household_id=eq.${householdId}` },
+      onChange,
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'assignments', filter: `household_id=eq.${householdId}` },
       onChange,
     )
     .on(

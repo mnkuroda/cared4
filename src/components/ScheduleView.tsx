@@ -1,15 +1,20 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { AssignHelpers } from './AssignHelpers'
 import { newSlotId, newTripId } from '../storage'
-import type { ScheduleSlot, Trip } from '../types'
+import type { Assignment, ScheduleSlot, Trip } from '../types'
 
 interface ScheduleViewProps {
   trips: Trip[]
   tasks: string[]
+  assignments: Assignment[]
+  knownNames: string[]
   canManage: boolean
   onAdd: (trip: Trip) => void
   onUpdate: (trip: Trip) => void
   onDelete: (tripId: string) => void
+  onSaveAssignments: (assignments: Assignment[]) => void | Promise<void>
+  onRemoveAssignment: (assignmentId: string) => void | Promise<void>
   onClaimControl?: () => void
 }
 
@@ -41,10 +46,14 @@ function defaultSlots(taskOptions: string[]): ScheduleSlot[] {
 export function ScheduleView({
   trips,
   tasks,
+  assignments,
+  knownNames,
   canManage,
   onAdd,
   onUpdate,
   onDelete,
+  onSaveAssignments,
+  onRemoveAssignment,
   onClaimControl,
 }: ScheduleViewProps) {
   const [open, setOpen] = useState(false)
@@ -320,6 +329,15 @@ export function ScheduleView({
                 ))}
               </ul>
               {trip.notes ? <p className="trip__notes">{trip.notes}</p> : null}
+              {canManage && !open && (
+                <AssignHelpers
+                  trip={trip}
+                  assignments={assignments}
+                  knownNames={knownNames}
+                  onSave={onSaveAssignments}
+                  onRemove={onRemoveAssignment}
+                />
+              )}
             </li>
           ))}
         </ul>

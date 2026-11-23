@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { getRememberedName, newCheckInId, rememberName } from '../storage'
+import {
+  getKnownNames,
+  getRememberedName,
+  newCheckInId,
+  rememberName,
+} from '../storage'
 import type { CheckIn } from '../types'
 
 interface CheckInFormProps {
   tasks: string[]
+  knownNames?: string[]
   onSubmit: (checkIn: CheckIn, photo?: File | null) => void | Promise<void>
 }
 
@@ -18,7 +24,23 @@ function formatNow(date: Date): string {
   })
 }
 
-export function CheckInForm({ tasks, onSubmit }: CheckInFormProps) {
+function mergeNames(...lists: string[][]): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const list of lists) {
+    for (const name of list) {
+      const trimmed = name.trim()
+      if (!trimmed) continue
+      const key = trimmed.toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      result.push(trimmed)
+    }
+  }
+  return result
+}
+
+export function CheckInForm({ tasks, knownNames = [], onSubmit }: CheckInFormProps) {
   const [name, setName] = useState(getRememberedName)
   const [task, setTask] = useState(tasks[0] ?? '')
   const [note, setNote] = useState('')
@@ -27,6 +49,11 @@ export function CheckInForm({ tasks, onSubmit }: CheckInFormProps) {
   const [now, setNow] = useState(() => new Date())
   const [justSaved, setJustSaved] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  const nameOptions = useMemo(
+    () => mergeNames(getKnownNames(), knownNames),
+    [knownNames],
+  )
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 30_000)
@@ -88,6 +115,7 @@ export function CheckInForm({ tasks, onSubmit }: CheckInFormProps) {
         <label>
           <span>Your name</span>
           <input
+            list="known-helper-names"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Who checked in?"
@@ -95,7 +123,28 @@ export function CheckInForm({ tasks, onSubmit }: CheckInFormProps) {
             required
             disabled={saving}
           />
+          <datalist id="known-helper-names">
+            {nameOptions.map((option) => (
+              <option key={option} value={option} />
+            ))}
+          </datalist>
         </label>
+
+        {nameOptions.length > 0 && (
+          <div className="name-picks" role="group" aria-label="Saved names">
+            {nameOptions.map((option) => (
+              <button
+                key={option}
+                type="button"
+                className={option === name ? 'name-pick is-active' : 'name-pick'}
+                onClick={() => setName(option)}
+                disabled={saving}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="stamp" aria-live="polite">
           <span className="stamp__label">Date &amp; time</span>

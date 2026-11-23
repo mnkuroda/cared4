@@ -7,17 +7,18 @@ import {
   parseDateKey,
   toDateKey,
 } from '../lib/careStatus'
-import type { CheckIn, Trip } from '../types'
+import type { Assignment, CheckIn, Trip } from '../types'
 
 interface CareCalendarProps {
   trips: Trip[]
   checkIns: CheckIn[]
+  assignments: Assignment[]
   onCheckIn: () => void
 }
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-export function CareCalendar({ trips, checkIns, onCheckIn }: CareCalendarProps) {
+export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCalendarProps) {
   const todayKey = toDateKey(new Date())
   const [cursor, setCursor] = useState(() => {
     const now = new Date()
@@ -48,6 +49,7 @@ export function CareCalendar({ trips, checkIns, onCheckIn }: CareCalendarProps) 
   const slotStatuses = selectedTrip
     ? daySlotStatuses(selectedTrip.slots, checkIns, selectedKey)
     : []
+  const dayAssignments = assignments.filter((item) => item.date === selectedKey)
 
   const monthLabel = new Date(cursor.year, cursor.month, 1).toLocaleDateString(
     undefined,
@@ -166,40 +168,50 @@ export function CareCalendar({ trips, checkIns, onCheckIn }: CareCalendarProps) 
           <p className="empty">This trip has no daily care times yet.</p>
         ) : (
           <ul className="cal-slots">
-            {slotStatuses.map(({ slot, tasks, openCount }) => (
-              <li
-                key={slot.id}
-                className={openCount > 0 ? 'cal-slot is-open' : 'cal-slot is-done'}
-              >
-                <div className="cal-slot__time">
-                  <strong>{formatSlotTime(slot.time)}</strong>
-                  <span>{openCount > 0 ? `${openCount} open` : 'All done'}</span>
-                </div>
-                <ul className="cal-slot__tasks">
-                  {tasks.map((item) => (
-                    <li
-                      key={`${slot.id}-${item.task}`}
-                      className={item.done ? 'is-done' : 'is-open'}
-                    >
-                      <span>{item.task}</span>
-                      {item.done ? (
-                        <em>
-                          {item.by}
-                          {item.at
-                            ? ` · ${new Date(item.at).toLocaleTimeString(undefined, {
-                                hour: 'numeric',
-                                minute: '2-digit',
-                              })}`
-                            : ''}
-                        </em>
-                      ) : (
-                        <em>Still open</em>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
+            {slotStatuses.map(({ slot, tasks, openCount }) => {
+              const assignees = dayAssignments
+                .filter((item) => item.time === slot.time)
+                .map((item) => item.personName)
+              return (
+                <li
+                  key={slot.id}
+                  className={openCount > 0 ? 'cal-slot is-open' : 'cal-slot is-done'}
+                >
+                  <div className="cal-slot__time">
+                    <strong>{formatSlotTime(slot.time)}</strong>
+                    <span>{openCount > 0 ? `${openCount} open` : 'All done'}</span>
+                  </div>
+                  {assignees.length > 0 && (
+                    <p className="cal-slot__assignee">
+                      Assigned: {Array.from(new Set(assignees)).join(', ')}
+                    </p>
+                  )}
+                  <ul className="cal-slot__tasks">
+                    {tasks.map((item) => (
+                      <li
+                        key={`${slot.id}-${item.task}`}
+                        className={item.done ? 'is-done' : 'is-open'}
+                      >
+                        <span>{item.task}</span>
+                        {item.done ? (
+                          <em>
+                            {item.by}
+                            {item.at
+                              ? ` · ${new Date(item.at).toLocaleTimeString(undefined, {
+                                  hour: 'numeric',
+                                  minute: '2-digit',
+                                })}`
+                              : ''}
+                          </em>
+                        ) : (
+                          <em>Still open</em>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              )
+            })}
           </ul>
         )}
 
