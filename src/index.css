@@ -316,6 +316,15 @@ textarea {
   border-radius: 14px;
 }
 
+.tabs--four {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.tabs--four button {
+  font-size: 0.92rem;
+  padding-inline: 0.2rem;
+}
+
 .tabs button {
   border: 0;
   background: transparent;
@@ -603,6 +612,232 @@ textarea {
   background: rgba(176, 60, 60, 0.1);
   border: 1px solid rgba(176, 60, 60, 0.35);
   color: #8a2e2e;
+}
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.cal-nav__label {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  text-align: center;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.35rem;
+}
+
+.cal-grid__head {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  padding-bottom: 0.25rem;
+}
+
+.cal-cell {
+  aspect-ratio: 1;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  gap: 0.15rem;
+  padding: 0.2rem;
+  position: relative;
+}
+
+.cal-cell--empty {
+  pointer-events: none;
+}
+
+.cal-cell--trip {
+  background: rgba(42, 107, 78, 0.08);
+}
+
+.cal-cell.is-today {
+  border-color: var(--moss);
+}
+
+.cal-cell.is-selected {
+  border-color: var(--forest);
+  background: rgba(42, 107, 78, 0.16);
+  box-shadow: 0 0 0 2px rgba(42, 107, 78, 0.12);
+}
+
+.cal-cell__day {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.cal-cell__dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: var(--honey);
+}
+
+.cal-cell.is-done .cal-cell__dot {
+  background: var(--forest);
+}
+
+.cal-cell.is-partial .cal-cell__dot {
+  background: #c47a2a;
+}
+
+.cal-cell.is-open .cal-cell__dot {
+  background: var(--honey);
+}
+
+.cal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  margin: 0.85rem 0 1.1rem;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+
+.cal-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.dot--open {
+  background: var(--honey);
+}
+
+.dot--partial {
+  background: #c47a2a;
+}
+
+.dot--done {
+  background: var(--forest);
+}
+
+.cal-day {
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.cal-day__head h3 {
+  margin: 0 0 0.2rem;
+  font-size: 1.25rem;
+}
+
+.cal-day__head p {
+  color: var(--ink-soft);
+}
+
+.cal-slots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.cal-slot {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 0.85rem;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.cal-slot.is-open {
+  border-color: rgba(212, 146, 58, 0.55);
+  background: rgba(212, 146, 58, 0.08);
+}
+
+.cal-slot.is-done {
+  border-color: rgba(42, 107, 78, 0.35);
+  background: rgba(42, 107, 78, 0.08);
+}
+
+.cal-slot__time {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: baseline;
+  margin-bottom: 0.55rem;
+}
+
+.cal-slot__time strong {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  color: var(--forest-deep);
+}
+
+.cal-slot__time span {
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.cal-slot__tasks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.cal-slot__tasks li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.45rem 0.55rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 0.95rem;
+}
+
+.cal-slot__tasks li.is-done {
+  color: var(--forest-deep);
+}
+
+.cal-slot__tasks li.is-open {
+  color: var(--ink);
+}
+
+.cal-slot__tasks em {
+  font-style: normal;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  text-align: right;
+}
+
+.cal-day__notes {
+  color: var(--ink-soft);
+  line-height: 1.45;
+}
+
+@media (max-width: 560px) {
+  .tabs--four button {
+    font-size: 0.8rem;
+  }
+
+  .cal-nav .btn {
+    padding-inline: 0.7rem;
+  }
 }
 
 @media (max-width: 560px) {

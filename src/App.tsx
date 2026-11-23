@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ActivityLog } from './components/ActivityLog'
+import { CareCalendar } from './components/CareCalendar'
 import { CheckInForm } from './components/CheckInForm'
 import { ScheduleView } from './components/ScheduleView'
 import { ShareBar } from './components/ShareBar'
@@ -8,6 +9,7 @@ import { useHousehold } from './hooks/useHousehold'
 import type { TabId } from './types'
 
 const TABS: { id: TabId; label: string }[] = [
+  { id: 'calendar', label: 'Calendar' },
   { id: 'checkin', label: 'Check in' },
   { id: 'log', label: 'Activity' },
   { id: 'schedule', label: 'Schedule' },
@@ -27,7 +29,7 @@ export default function App() {
     deleteTrip,
     leaveHousehold,
   } = useHousehold()
-  const [tab, setTab] = useState<TabId>('checkin')
+  const [tab, setTab] = useState<TabId>('calendar')
 
   if (!ready) {
     return <div className="boot">Loading…</div>
@@ -64,7 +66,7 @@ export default function App() {
         </div>
       )}
 
-      <nav className="tabs" aria-label="Main">
+      <nav className="tabs tabs--four" aria-label="Main">
         {TABS.map((item) => (
           <button
             key={item.id}
@@ -79,6 +81,13 @@ export default function App() {
       </nav>
 
       <main className="main">
+        {tab === 'calendar' && (
+          <CareCalendar
+            trips={household.trips}
+            checkIns={household.checkIns}
+            onCheckIn={() => setTab('checkin')}
+          />
+        )}
         {tab === 'checkin' && (
           <CheckInForm tasks={household.tasks} onSubmit={addCheckIn} />
         )}

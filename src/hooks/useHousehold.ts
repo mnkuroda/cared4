@@ -28,6 +28,15 @@ function setUrlHousehold(id: string | null) {
   window.history.replaceState({}, '', url.toString())
 }
 
+function errorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error && err.message) return err.message
+  if (err && typeof err === 'object' && 'message' in err) {
+    const message = (err as { message?: unknown }).message
+    if (typeof message === 'string' && message) return message
+  }
+  return fallback
+}
+
 export function useHousehold() {
   const [household, setHousehold] = useState<Household | null>(null)
   const [ready, setReady] = useState(false)
@@ -73,7 +82,7 @@ export function useHousehold() {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Could not load household.')
+          setError(errorMessage(err, 'Could not load household.'))
         }
       } finally {
         if (!cancelled) setReady(true)
@@ -107,7 +116,7 @@ export function useHousehold() {
       setHousehold(next)
       return next
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create household.')
+      setError(errorMessage(err, 'Could not create household.'))
       throw err
     } finally {
       setBusy(false)
@@ -129,7 +138,7 @@ export function useHousehold() {
       setHousehold(existing)
       return existing
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not join household.')
+      setError(errorMessage(err, 'Could not join household.'))
       throw err
     } finally {
       setBusy(false)
@@ -147,7 +156,7 @@ export function useHousehold() {
       try {
         await insertCheckIn(household.id, checkIn)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Could not save check-in.')
+        setError(errorMessage(err, 'Could not save check-in.'))
         await refresh(household.id)
       }
     },
@@ -165,7 +174,7 @@ export function useHousehold() {
       try {
         await insertTrip(household.id, trip)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Could not save schedule.')
+        setError(errorMessage(err, 'Could not save schedule.'))
         await refresh(household.id)
       }
     },
@@ -183,7 +192,7 @@ export function useHousehold() {
       try {
         await deleteTripRemote(tripId)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Could not remove schedule.')
+        setError(errorMessage(err, 'Could not remove schedule.'))
         await refresh(household.id)
       }
     },

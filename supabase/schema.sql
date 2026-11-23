@@ -37,6 +37,12 @@ alter table public.households enable row level security;
 alter table public.check_ins enable row level security;
 alter table public.trips enable row level security;
 
+-- API roles need table privileges in addition to RLS policies.
+grant usage on schema public to anon, authenticated;
+grant select, insert, update on public.households to anon, authenticated;
+grant select, insert on public.check_ins to anon, authenticated;
+grant select, insert, delete on public.trips to anon, authenticated;
+
 -- Share-link model: anyone with the household code can read/write.
 -- Fine for a private pet-care helper link; not for sensitive data.
 

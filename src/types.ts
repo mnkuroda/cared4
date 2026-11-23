@@ -46,7 +46,7 @@ export interface Household {
   createdAt: string
 }
 
-export type TabId = 'checkin' | 'log' | 'schedule'
+export type TabId = 'calendar' | 'checkin' | 'log' | 'schedule'
 
 export function normalizeSlot(slot: LegacyScheduleSlot): ScheduleSlot {
   if (Array.isArray(slot.tasks) && slot.tasks.length > 0) {
