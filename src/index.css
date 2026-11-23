@@ -606,6 +606,9 @@ textarea {
   background: rgba(212, 146, 58, 0.16);
   border: 1px solid rgba(212, 146, 58, 0.45);
   color: #7a4d10;
+  display: grid;
+  gap: 0.65rem;
+  justify-items: start;
 }
 
 .banner--error {

@@ -6,8 +6,10 @@ import type { ScheduleSlot, Trip } from '../types'
 interface ScheduleViewProps {
   trips: Trip[]
   tasks: string[]
+  canManage: boolean
   onAdd: (trip: Trip) => void
   onDelete: (tripId: string) => void
+  onClaimControl?: () => void
 }
 
 function formatRange(start: string, end: string): string {
@@ -35,8 +37,16 @@ function defaultSlots(taskOptions: string[]): ScheduleSlot[] {
   ]
 }
 
-export function ScheduleView({ trips, tasks, onAdd, onDelete }: ScheduleViewProps) {
+export function ScheduleView({
+  trips,
+  tasks,
+  canManage,
+  onAdd,
+  onDelete,
+  onClaimControl,
+}: ScheduleViewProps) {
   const [open, setOpen] = useState(false)
+  const canAdd = canManage && trips.length === 0
   const [title, setTitle] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -110,18 +120,39 @@ export function ScheduleView({ trips, tasks, onAdd, onDelete }: ScheduleViewProp
       <header className="panel__header panel__header--row">
         <div>
           <h2>Care schedule</h2>
-          <p>Set when you&apos;re away and what needs doing each day.</p>
+          <p>
+            {canManage
+              ? 'Add one trip, or remove it to replace with a new one.'
+              : 'View-only — helpers can check in, but only the creator manages trips.'}
+          </p>
         </div>
-        <button
-          type="button"
-          className="btn btn--ghost"
-          onClick={() => setOpen((v) => !v)}
-        >
-          {open ? 'Cancel' : 'New trip'}
-        </button>
+        {canAdd && (
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={() => setOpen((v) => !v)}
+          >
+            {open ? 'Cancel' : 'New trip'}
+          </button>
+        )}
       </header>
 
-      {open && (
+      {!canManage && onClaimControl && (
+        <div className="banner banner--warn">
+          <p>If this is your household on this device, claim schedule control.</p>
+          <button type="button" className="btn btn--ghost" onClick={onClaimControl}>
+            I manage this schedule
+          </button>
+        </div>
+      )}
+
+      {canManage && trips.length > 0 && !open && (
+        <p className="slots__hint">
+          Remove the current trip if you need to set different dates or times.
+        </p>
+      )}
+
+      {open && canAdd && (
         <form className="stack-form schedule__form" onSubmit={handleSubmit}>
           <label>
             <span>Trip name</span>
@@ -218,7 +249,11 @@ export function ScheduleView({ trips, tasks, onAdd, onDelete }: ScheduleViewProp
       )}
 
       {trips.length === 0 && !open ? (
-        <p className="empty">No trips yet. Add one when you&apos;ll be out of town.</p>
+        <p className="empty">
+          {canManage
+            ? "No trip yet. Add one when you'll be out of town."
+            : 'No trip scheduled yet.'}
+        </p>
       ) : (
         <ul className="trip-list">
           {trips.map((trip) => (
@@ -228,13 +263,15 @@ export function ScheduleView({ trips, tasks, onAdd, onDelete }: ScheduleViewProp
                   <h3>{trip.title}</h3>
                   <p className="trip__dates">{formatRange(trip.startDate, trip.endDate)}</p>
                 </div>
-                <button
-                  type="button"
-                  className="btn btn--ghost"
-                  onClick={() => onDelete(trip.id)}
-                >
-                  Remove
-                </button>
+                {canManage && (
+                  <button
+                    type="button"
+                    className="btn btn--ghost"
+                    onClick={() => onDelete(trip.id)}
+                  >
+                    Remove
+                  </button>
+                )}
               </div>
               <ul className="trip__slots">
                 {trip.slots.map((slot) => (

@@ -12,6 +12,8 @@ import {
   clearLastHouseholdId,
   createHousehold,
   getLastHouseholdId,
+  isHouseholdOwner,
+  markHouseholdOwner,
   rememberHouseholdId,
 } from '../storage'
 import type { CheckIn, Household, Trip } from '../types'
@@ -42,6 +44,7 @@ export function useHousehold() {
   const [ready, setReady] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isOwner, setIsOwner] = useState(false)
 
   const refresh = useCallback(async (id: string) => {
     const next = await fetchHousehold(id)
@@ -75,6 +78,7 @@ export function useHousehold() {
           setHousehold(existing)
           rememberHouseholdId(existing.id)
           setUrlHousehold(existing.id)
+          setIsOwner(isHouseholdOwner(existing.id))
         } else if (fromUrl) {
           setError('That household code was not found. Ask for a fresh share link.')
           clearLastHouseholdId()
@@ -111,9 +115,11 @@ export function useHousehold() {
     try {
       const next = createHousehold(name)
       await createHouseholdRemote(next)
+      markHouseholdOwner(next.id)
       rememberHouseholdId(next.id)
       setUrlHousehold(next.id)
       setHousehold(next)
+      setIsOwner(true)
       return next
     } catch (err) {
       setError(errorMessage(err, 'Could not create household.'))
@@ -136,6 +142,7 @@ export function useHousehold() {
       rememberHouseholdId(existing.id)
       setUrlHousehold(existing.id)
       setHousehold(existing)
+      setIsOwner(isHouseholdOwner(existing.id))
       return existing
     } catch (err) {
       setError(errorMessage(err, 'Could not join household.'))
@@ -165,11 +172,18 @@ export function useHousehold() {
 
   const addTrip = useCallback(
     async (trip: Trip) => {
-      if (!household) return
+      if (!household || !isHouseholdOwner(household.id)) {
+        setError('Only the household creator can add a trip.')
+        return
+      }
+      if (household.trips.length > 0) {
+        setError('Remove the current trip before adding a new one.')
+        return
+      }
       setError(null)
       setHousehold({
         ...household,
-        trips: [trip, ...household.trips],
+        trips: [trip],
       })
       try {
         await insertTrip(household.id, trip)
@@ -183,7 +197,10 @@ export function useHousehold() {
 
   const deleteTrip = useCallback(
     async (tripId: string) => {
-      if (!household) return
+      if (!household || !isHouseholdOwner(household.id)) {
+        setError('Only the household creator can remove a trip.')
+        return
+      }
       setError(null)
       setHousehold({
         ...household,
@@ -203,14 +220,23 @@ export function useHousehold() {
     clearLastHouseholdId()
     setUrlHousehold(null)
     setHousehold(null)
+    setIsOwner(false)
     setError(null)
   }, [])
+
+  const claimScheduleControl = useCallback(() => {
+    if (!household) return
+    markHouseholdOwner(household.id)
+    setIsOwner(true)
+    setError(null)
+  }, [household])
 
   return {
     household,
     ready,
     busy,
     error,
+    isOwner,
     cloudReady: isCloudConfigured,
     startHousehold,
     joinHousehold,
@@ -218,5 +244,6 @@ export function useHousehold() {
     addTrip,
     deleteTrip,
     leaveHousehold,
+    claimScheduleControl,
   }
 }

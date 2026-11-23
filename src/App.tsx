@@ -28,6 +28,8 @@ export default function App() {
     addTrip,
     deleteTrip,
     leaveHousehold,
+    isOwner,
+    claimScheduleControl,
   } = useHousehold()
   const [tab, setTab] = useState<TabId>('calendar')
 
@@ -96,8 +98,10 @@ export default function App() {
           <ScheduleView
             trips={household.trips}
             tasks={household.tasks}
+            canManage={isOwner}
             onAdd={addTrip}
             onDelete={deleteTrip}
+            onClaimControl={isOwner ? undefined : claimScheduleControl}
           />
         )}
       </main>

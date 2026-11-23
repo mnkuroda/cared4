@@ -39,6 +39,19 @@ export function clearLastHouseholdId(): void {
   localStorage.removeItem(LAST_HOUSEHOLD_KEY)
 }
 
+function ownerKey(householdId: string): string {
+  return `cared4:owner:${householdId}`
+}
+
+/** Creator's browser can manage the schedule; helpers cannot. */
+export function markHouseholdOwner(householdId: string): void {
+  localStorage.setItem(ownerKey(householdId), '1')
+}
+
+export function isHouseholdOwner(householdId: string): boolean {
+  return localStorage.getItem(ownerKey(householdId)) === '1'
+}
+
 export function getRememberedName(): string {
   return localStorage.getItem(LAST_NAME_KEY) ?? ''
 }
