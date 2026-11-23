@@ -4,8 +4,11 @@ import { DEFAULT_TASKS, normalizeSlot, type CheckIn, type Household, type Trip }
 const REMOVED_TASKS = new Set(['Gave medication', 'Scooped litter'])
 
 const TASK_RENAMES: Record<string, string> = {
-  'Fed cats': 'Feed cats',
-  'Fed dogs': 'Feed dogs',
+  'Fed cats': 'Feed cat(s)',
+  'Fed dogs': 'Feed dog(s)',
+  'Feed cats': 'Feed cat(s)',
+  'Feed dogs': 'Feed dog(s)',
+  'Let dogs out': 'Let dog(s) out',
   'Refilled water': 'Refill water',
   'Emptied litter robot': 'Empty litter robot',
 }

@@ -1,7 +1,7 @@
 export const DEFAULT_TASKS = [
-  'Feed cats',
-  'Feed dogs',
-  'Let dogs out',
+  'Feed cat(s)',
+  'Feed dog(s)',
+  'Let dog(s) out',
   'Refill water',
   'Empty litter robot',
 ] as const
