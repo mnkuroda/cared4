@@ -1,0 +1,87 @@
+import { useState } from 'react'
+import { ActivityLog } from './components/ActivityLog'
+import { CheckInForm } from './components/CheckInForm'
+import { ScheduleView } from './components/ScheduleView'
+import { ShareBar } from './components/ShareBar'
+import { Welcome } from './components/Welcome'
+import { useHousehold } from './hooks/useHousehold'
+import type { TabId } from './types'
+
+const TABS: { id: TabId; label: string }[] = [
+  { id: 'checkin', label: 'Check in' },
+  { id: 'log', label: 'Activity' },
+  { id: 'schedule', label: 'Schedule' },
+]
+
+export default function App() {
+  const {
+    household,
+    ready,
+    startHousehold,
+    joinHousehold,
+    addCheckIn,
+    addTrip,
+    deleteTrip,
+    leaveHousehold,
+  } = useHousehold()
+  const [tab, setTab] = useState<TabId>('checkin')
+
+  if (!ready) {
+    return <div className="boot">Loading…</div>
+  }
+
+  if (!household) {
+    return (
+      <div className="app-shell app-shell--welcome">
+        <Welcome onCreate={startHousehold} onJoin={joinHousehold} />
+      </div>
+    )
+  }
+
+  return (
+    <div className="app-shell">
+      <header className="topbar">
+        <p className="brand brand--sm">cared4</p>
+        <ShareBar
+          householdId={household.id}
+          householdName={household.name}
+          onLeave={leaveHousehold}
+        />
+      </header>
+
+      <nav className="tabs" aria-label="Main">
+        {TABS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={tab === item.id ? 'is-active' : undefined}
+            aria-current={tab === item.id ? 'page' : undefined}
+            onClick={() => setTab(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
+
+      <main className="main">
+        {tab === 'checkin' && (
+          <CheckInForm tasks={household.tasks} onSubmit={addCheckIn} />
+        )}
+        {tab === 'log' && <ActivityLog checkIns={household.checkIns} />}
+        {tab === 'schedule' && (
+          <ScheduleView
+            trips={household.trips}
+            tasks={household.tasks}
+            onAdd={addTrip}
+            onDelete={deleteTrip}
+          />
+        )}
+      </main>
+
+      <p className="local-note">
+        Data is saved in this browser for now. Cloud sync for helpers on other
+        phones is next — ask if you want that wired up.
+      </p>
+    </div>
+  )
+}
