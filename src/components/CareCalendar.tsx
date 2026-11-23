@@ -63,11 +63,12 @@ function PersonChip({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' })
     <span
       className={size === 'sm' ? 'person-chip person-chip--sm' : 'person-chip'}
       style={{ background: color.bg, color: color.fg }}
+      title={name}
     >
       <i className={size === 'sm' ? 'cal-avatar' : 'cal-avatar cal-avatar--inline'}>
         {personInitials(name)}
       </i>
-      {name}
+      <span>{name}</span>
     </span>
   )
 }
@@ -457,22 +458,31 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
                   .join(' ')}
                 role="listitem"
               >
-                <button
-                  type="button"
-                  className="week-day__head"
-                  onClick={() => selectDay(dateKey)}
-                  onDoubleClick={() => selectDay(dateKey, 'day')}
-                  aria-pressed={isSelected}
-                >
-                  <strong>
-                    {parseDateKey(dateKey).toLocaleDateString(undefined, {
-                      weekday: 'short',
-                      month: 'short',
-                      day: 'numeric',
-                    })}
-                  </strong>
-                  <span>{trip ? trip.title : 'No trip'}</span>
-                </button>
+                <div className="week-day__top">
+                  <button
+                    type="button"
+                    className="week-day__head"
+                    onClick={() => selectDay(dateKey)}
+                    onDoubleClick={() => selectDay(dateKey, 'day')}
+                    aria-pressed={isSelected}
+                  >
+                    <strong>
+                      {parseDateKey(dateKey).toLocaleDateString(undefined, {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </strong>
+                    <span>{trip ? trip.title : 'No trip'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--ghost week-day__zoom"
+                    onClick={() => selectDay(dateKey, 'day')}
+                  >
+                    Open day
+                  </button>
+                </div>
 
                 {!trip ? (
                   <p className="week-day__empty">Nothing scheduled</p>
@@ -520,14 +530,6 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
                     })}
                   </ul>
                 )}
-
-                <button
-                  type="button"
-                  className="btn btn--ghost week-day__zoom"
-                  onClick={() => selectDay(dateKey, 'day')}
-                >
-                  Open day
-                </button>
               </article>
             )
           })}
