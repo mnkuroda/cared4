@@ -451,9 +451,16 @@ textarea {
 
 .slot-row {
   display: grid;
-  grid-template-columns: 7.5rem 1fr auto;
+  grid-template-columns: minmax(11.5rem, 13rem) 1fr auto;
   gap: 0.5rem;
   align-items: center;
+}
+
+.slot-row input[type='time'] {
+  min-width: 0;
+  width: 100%;
+  padding-inline: 0.65rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .trip-list {
@@ -532,7 +539,7 @@ textarea {
   }
 
   .slot-row {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(11.5rem, 1fr) auto;
   }
 
   .slot-row select {
