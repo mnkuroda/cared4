@@ -762,11 +762,157 @@ textarea {
   font-size: 0.95rem;
 }
 
+.cal-mode {
+  margin-bottom: 1rem;
+}
+
+.cal-cell--people {
+  align-content: center;
+  gap: 0.2rem;
+}
+
 .cal-cell__dot {
   width: 0.4rem;
   height: 0.4rem;
   border-radius: 999px;
   background: var(--honey);
+}
+
+.cal-cell__avatars {
+  display: flex;
+  justify-content: center;
+  gap: 0.12rem;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.cal-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 999px;
+  font-size: 0.55rem;
+  font-weight: 700;
+  font-style: normal;
+  line-height: 1;
+}
+
+.cal-avatar--inline {
+  width: 1.35rem;
+  height: 1.35rem;
+  font-size: 0.65rem;
+}
+
+.cal-cell.has-people {
+  background: rgba(42, 107, 78, 0.1);
+}
+
+.cal-legend--people {
+  align-items: center;
+}
+
+.person-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: rgba(42, 107, 78, 0.1);
+  color: var(--forest-deep);
+}
+
+.person-chip--sm {
+  padding: 0.2rem 0.45rem;
+  font-size: 0.78rem;
+}
+
+.coverage-board {
+  margin: 0.25rem 0 1.1rem;
+  padding: 0.95rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.coverage-board h3 {
+  margin: 0 0 0.2rem;
+  font-size: 1.2rem;
+}
+
+.coverage-board__sub {
+  color: var(--ink-soft);
+  margin-bottom: 0.75rem;
+}
+
+.coverage-days {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.coverage-day {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  border-radius: 12px;
+  padding: 0.7rem 0.8rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.coverage-day.is-selected {
+  border-color: var(--forest);
+  box-shadow: 0 0 0 2px rgba(42, 107, 78, 0.12);
+}
+
+.coverage-day__slots {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.coverage-slot {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.coverage-slot__time {
+  font-weight: 700;
+  color: var(--forest-deep);
+  font-size: 0.9rem;
+}
+
+.coverage-slot__open,
+.coverage-day__empty {
+  color: var(--ink-soft);
+  font-style: normal;
+  font-size: 0.88rem;
+}
+
+.coverage-slot__people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.cal-slot__people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.55rem;
+}
+
+.cal-slot__tasks-line {
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+  margin: 0;
 }
 
 .cal-cell.is-done .cal-cell__dot {

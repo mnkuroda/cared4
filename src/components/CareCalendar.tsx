@@ -2,11 +2,13 @@ import { useMemo, useState } from 'react'
 import {
   activeTripOn,
   daySlotStatuses,
+  eachDay,
   formatSlotTime,
   monthMatrix,
   parseDateKey,
   toDateKey,
 } from '../lib/careStatus'
+import { personColor, personInitials } from '../lib/people'
 import type { Assignment, CheckIn, Trip } from '../types'
 
 interface CareCalendarProps {
@@ -16,10 +18,25 @@ interface CareCalendarProps {
   onCheckIn: () => void
 }
 
+type CalendarMode = 'status' | 'people'
+
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+function uniqueNames(names: string[]): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const name of names) {
+    const key = name.trim().toLowerCase()
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    result.push(name.trim())
+  }
+  return result
+}
 
 export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCalendarProps) {
   const todayKey = toDateKey(new Date())
+  const [mode, setMode] = useState<CalendarMode>('people')
   const [cursor, setCursor] = useState(() => {
     const now = new Date()
     return { year: now.getFullYear(), month: now.getMonth() }
@@ -34,22 +51,41 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
   const tripDays = useMemo(() => {
     const set = new Set<string>()
     for (const trip of trips) {
-      const start = parseDateKey(trip.startDate)
-      const end = parseDateKey(trip.endDate)
-      const d = new Date(start)
-      while (d <= end) {
-        set.add(toDateKey(d))
-        d.setDate(d.getDate() + 1)
-      }
+      for (const day of eachDay(trip.startDate, trip.endDate)) set.add(day)
     }
     return set
   }, [trips])
+
+  const assignmentsByDay = useMemo(() => {
+    const map = new Map<string, Assignment[]>()
+    for (const item of assignments) {
+      const list = map.get(item.date) ?? []
+      list.push(item)
+      map.set(item.date, list)
+    }
+    return map
+  }, [assignments])
 
   const selectedTrip = activeTripOn(trips, selectedKey)
   const slotStatuses = selectedTrip
     ? daySlotStatuses(selectedTrip.slots, checkIns, selectedKey)
     : []
-  const dayAssignments = assignments.filter((item) => item.date === selectedKey)
+  const dayAssignments = assignmentsByDay.get(selectedKey) ?? []
+
+  const coverageDays = useMemo(() => {
+    if (!selectedTrip) return [] as string[]
+    return eachDay(selectedTrip.startDate, selectedTrip.endDate)
+  }, [selectedTrip])
+
+  const helperLegend = useMemo(() => {
+    const names = uniqueNames(
+      (selectedTrip
+        ? assignments.filter((item) => item.tripId === selectedTrip.id)
+        : assignments
+      ).map((item) => item.personName),
+    )
+    return names
+  }, [assignments, selectedTrip])
 
   const monthLabel = new Date(cursor.year, cursor.month, 1).toLocaleDateString(
     undefined,
@@ -81,12 +117,41 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
     return 'open'
   }
 
+  function peopleForDay(dateKey: string): string[] {
+    return uniqueNames((assignmentsByDay.get(dateKey) ?? []).map((item) => item.personName))
+  }
+
   return (
     <section className="panel calendar">
       <header className="panel__header">
         <h2>Care calendar</h2>
-        <p>See open care times and what&apos;s already logged.</p>
+        <p>
+          {mode === 'people'
+            ? 'See who is covering each day and care time.'
+            : 'See open care times and what is already logged.'}
+        </p>
       </header>
+
+      <div className="mode-toggle cal-mode" role="tablist" aria-label="Calendar view">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === 'people'}
+          className={mode === 'people' ? 'is-active' : undefined}
+          onClick={() => setMode('people')}
+        >
+          Who&apos;s on
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === 'status'}
+          className={mode === 'status' ? 'is-active' : undefined}
+          onClick={() => setMode('status')}
+        >
+          Care status
+        </button>
+      </div>
 
       <div className="cal-nav">
         <button type="button" className="btn btn--ghost" onClick={() => shiftMonth(-1)}>
@@ -110,6 +175,7 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
               return <div key={`e-${wi}-${di}`} className="cal-cell cal-cell--empty" />
             }
             const summary = daySummary(dateKey)
+            const people = peopleForDay(dateKey)
             const isSelected = dateKey === selectedKey
             const isToday = dateKey === todayKey
             const inTrip = tripDays.has(dateKey)
@@ -119,10 +185,12 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
                 type="button"
                 className={[
                   'cal-cell',
+                  mode === 'people' ? 'cal-cell--people' : undefined,
                   inTrip ? 'cal-cell--trip' : undefined,
                   isSelected ? 'is-selected' : undefined,
                   isToday ? 'is-today' : undefined,
-                  summary !== 'none' ? `is-${summary}` : undefined,
+                  mode === 'status' && summary !== 'none' ? `is-${summary}` : undefined,
+                  mode === 'people' && people.length > 0 ? 'has-people' : undefined,
                 ]
                   .filter(Boolean)
                   .join(' ')}
@@ -131,24 +199,134 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
                 aria-label={parseDateKey(dateKey).toLocaleDateString()}
               >
                 <span className="cal-cell__day">{Number(dateKey.slice(-2))}</span>
-                {summary !== 'none' && <span className="cal-cell__dot" aria-hidden="true" />}
+                {mode === 'status' && summary !== 'none' && (
+                  <span className="cal-cell__dot" aria-hidden="true" />
+                )}
+                {mode === 'people' && people.length > 0 && (
+                  <span className="cal-cell__avatars" aria-hidden="true">
+                    {people.slice(0, 3).map((name) => {
+                      const color = personColor(name)
+                      return (
+                        <i
+                          key={name}
+                          className="cal-avatar"
+                          style={{ background: color.bg, color: color.fg }}
+                          title={name}
+                        >
+                          {personInitials(name)}
+                        </i>
+                      )
+                    })}
+                  </span>
+                )}
               </button>
             )
           }),
         )}
       </div>
 
-      <div className="cal-legend" aria-hidden="true">
-        <span>
-          <i className="dot dot--open" /> Open
-        </span>
-        <span>
-          <i className="dot dot--partial" /> Partly done
-        </span>
-        <span>
-          <i className="dot dot--done" /> Complete
-        </span>
-      </div>
+      {mode === 'status' ? (
+        <div className="cal-legend" aria-hidden="true">
+          <span>
+            <i className="dot dot--open" /> Open
+          </span>
+          <span>
+            <i className="dot dot--partial" /> Partly done
+          </span>
+          <span>
+            <i className="dot dot--done" /> Complete
+          </span>
+        </div>
+      ) : (
+        <div className="cal-legend cal-legend--people">
+          {helperLegend.length === 0 ? (
+            <span>No helpers assigned yet — add them under Schedule.</span>
+          ) : (
+            helperLegend.map((name) => {
+              const color = personColor(name)
+              return (
+                <span key={name} className="person-chip">
+                  <i className="cal-avatar" style={{ background: color.bg, color: color.fg }}>
+                    {personInitials(name)}
+                  </i>
+                  {name}
+                </span>
+              )
+            })
+          )}
+        </div>
+      )}
+
+      {mode === 'people' && selectedTrip && (
+        <div className="coverage-board">
+          <h3>Coverage board</h3>
+          <p className="coverage-board__sub">{selectedTrip.title}</p>
+          <ul className="coverage-days">
+            {coverageDays.map((dateKey) => {
+              const dayPeople = peopleForDay(dateKey)
+              const trip = selectedTrip
+              return (
+                <li key={dateKey}>
+                  <button
+                    type="button"
+                    className={
+                      dateKey === selectedKey
+                        ? 'coverage-day is-selected'
+                        : 'coverage-day'
+                    }
+                    onClick={() => setSelectedKey(dateKey)}
+                  >
+                    <strong>
+                      {parseDateKey(dateKey).toLocaleDateString(undefined, {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </strong>
+                    <div className="coverage-day__slots">
+                      {trip.slots.map((slot) => {
+                        const names = uniqueNames(
+                          (assignmentsByDay.get(dateKey) ?? [])
+                            .filter((item) => item.time === slot.time)
+                            .map((item) => item.personName),
+                        )
+                        return (
+                          <div key={slot.id} className="coverage-slot">
+                            <span className="coverage-slot__time">
+                              {formatSlotTime(slot.time)}
+                            </span>
+                            {names.length === 0 ? (
+                              <em className="coverage-slot__open">Unassigned</em>
+                            ) : (
+                              <span className="coverage-slot__people">
+                                {names.map((name) => {
+                                  const color = personColor(name)
+                                  return (
+                                    <span
+                                      key={name}
+                                      className="person-chip person-chip--sm"
+                                      style={{ background: color.bg, color: color.fg }}
+                                    >
+                                      {name}
+                                    </span>
+                                  )
+                                })}
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                    {dayPeople.length === 0 && (
+                      <em className="coverage-day__empty">No one assigned</em>
+                    )}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
 
       <div className="cal-day">
         <div className="cal-day__head">
@@ -169,9 +347,11 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
         ) : (
           <ul className="cal-slots">
             {slotStatuses.map(({ slot, tasks, openCount }) => {
-              const assignees = dayAssignments
-                .filter((item) => item.time === slot.time)
-                .map((item) => item.personName)
+              const assignees = uniqueNames(
+                dayAssignments
+                  .filter((item) => item.time === slot.time)
+                  .map((item) => item.personName),
+              )
               return (
                 <li
                   key={slot.id}
@@ -179,36 +359,63 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
                 >
                   <div className="cal-slot__time">
                     <strong>{formatSlotTime(slot.time)}</strong>
-                    <span>{openCount > 0 ? `${openCount} open` : 'All done'}</span>
+                    <span>
+                      {mode === 'people'
+                        ? assignees.length > 0
+                          ? `${assignees.length} assigned`
+                          : 'Unassigned'
+                        : openCount > 0
+                          ? `${openCount} open`
+                          : 'All done'}
+                    </span>
                   </div>
                   {assignees.length > 0 && (
-                    <p className="cal-slot__assignee">
-                      Assigned: {Array.from(new Set(assignees)).join(', ')}
-                    </p>
+                    <div className="cal-slot__people">
+                      {assignees.map((name) => {
+                        const color = personColor(name)
+                        return (
+                          <span
+                            key={name}
+                            className="person-chip"
+                            style={{ background: color.bg, color: color.fg }}
+                          >
+                            <i className="cal-avatar cal-avatar--inline">
+                              {personInitials(name)}
+                            </i>
+                            {name}
+                          </span>
+                        )
+                      })}
+                    </div>
                   )}
-                  <ul className="cal-slot__tasks">
-                    {tasks.map((item) => (
-                      <li
-                        key={`${slot.id}-${item.task}`}
-                        className={item.done ? 'is-done' : 'is-open'}
-                      >
-                        <span>{item.task}</span>
-                        {item.done ? (
-                          <em>
-                            {item.by}
-                            {item.at
-                              ? ` · ${new Date(item.at).toLocaleTimeString(undefined, {
-                                  hour: 'numeric',
-                                  minute: '2-digit',
-                                })}`
-                              : ''}
-                          </em>
-                        ) : (
-                          <em>Still open</em>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
+                  {mode === 'status' && (
+                    <ul className="cal-slot__tasks">
+                      {tasks.map((item) => (
+                        <li
+                          key={`${slot.id}-${item.task}`}
+                          className={item.done ? 'is-done' : 'is-open'}
+                        >
+                          <span>{item.task}</span>
+                          {item.done ? (
+                            <em>
+                              {item.by}
+                              {item.at
+                                ? ` · ${new Date(item.at).toLocaleTimeString(undefined, {
+                                    hour: 'numeric',
+                                    minute: '2-digit',
+                                  })}`
+                                : ''}
+                            </em>
+                          ) : (
+                            <em>Still open</em>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {mode === 'people' && (
+                    <p className="cal-slot__tasks-line">{slot.tasks.join(' · ')}</p>
+                  )}
                 </li>
               )
             })}
