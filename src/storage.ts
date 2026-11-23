@@ -1,5 +1,15 @@
 import { DEFAULT_TASKS, normalizeTrip, type Household } from './types'
 
+const REMOVED_TASKS = new Set(['Gave medication', 'Scooped litter'])
+
+function migrateTasks(tasks: string[]): string[] {
+  const next = tasks.filter((task) => !REMOVED_TASKS.has(task))
+  if (!next.includes('Emptied litter robot')) {
+    next.push('Emptied litter robot')
+  }
+  return next
+}
+
 const STORAGE_PREFIX = 'cared4:household:'
 const LAST_HOUSEHOLD_KEY = 'cared4:lastHouseholdId'
 const LAST_NAME_KEY = 'cared4:lastName'
@@ -35,6 +45,7 @@ export function loadHousehold(id: string): Household | null {
     const parsed = JSON.parse(raw) as Household
     return {
       ...parsed,
+      tasks: migrateTasks(parsed.tasks ?? [...DEFAULT_TASKS]),
       trips: (parsed.trips ?? []).map(normalizeTrip),
     }
   } catch {

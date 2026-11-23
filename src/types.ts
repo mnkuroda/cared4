@@ -3,8 +3,7 @@ export const DEFAULT_TASKS = [
   'Fed dogs',
   'Let dogs out',
   'Refilled water',
-  'Gave medication',
-  'Scooped litter',
+  'Emptied litter robot',
 ] as const
 
 export interface CheckIn {
