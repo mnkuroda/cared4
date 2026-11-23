@@ -17,6 +17,9 @@ export default function App() {
   const {
     household,
     ready,
+    busy,
+    error,
+    cloudReady,
     startHousehold,
     joinHousehold,
     addCheckIn,
@@ -33,7 +36,13 @@ export default function App() {
   if (!household) {
     return (
       <div className="app-shell app-shell--welcome">
-        <Welcome onCreate={startHousehold} onJoin={joinHousehold} />
+        <Welcome
+          cloudReady={cloudReady}
+          busy={busy}
+          error={error}
+          onCreate={startHousehold}
+          onJoin={joinHousehold}
+        />
       </div>
     )
   }
@@ -48,6 +57,12 @@ export default function App() {
           onLeave={leaveHousehold}
         />
       </header>
+
+      {error && (
+        <div className="banner banner--error" role="alert">
+          {error}
+        </div>
+      )}
 
       <nav className="tabs" aria-label="Main">
         {TABS.map((item) => (
@@ -79,8 +94,7 @@ export default function App() {
       </main>
 
       <p className="local-note">
-        Data is saved in this browser for now. Cloud sync for helpers on other
-        phones is next — ask if you want that wired up.
+        Shared live with helpers who have your link or household code.
       </p>
     </div>
   )

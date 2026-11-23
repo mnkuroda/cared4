@@ -1,9 +1,18 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
+  createHouseholdRemote,
+  deleteTripRemote,
+  fetchHousehold,
+  insertCheckIn,
+  insertTrip,
+  subscribeHousehold,
+} from '../api/households'
+import { isCloudConfigured } from '../lib/supabase'
+import {
+  clearLastHouseholdId,
   createHousehold,
   getLastHouseholdId,
-  loadHousehold,
-  saveHousehold,
+  rememberHouseholdId,
 } from '../storage'
 import type { CheckIn, Household, Trip } from '../types'
 
@@ -12,143 +21,193 @@ function householdFromUrl(): string | null {
   return params.get('h')
 }
 
+function setUrlHousehold(id: string | null) {
+  const url = new URL(window.location.href)
+  if (id) url.searchParams.set('h', id)
+  else url.searchParams.delete('h')
+  window.history.replaceState({}, '', url.toString())
+}
+
 export function useHousehold() {
   const [household, setHousehold] = useState<Household | null>(null)
   const [ready, setReady] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const fromUrl = householdFromUrl()
-    const id = fromUrl ?? getLastHouseholdId()
-    if (id) {
-      const existing = loadHousehold(id)
-      if (existing) {
-        setHousehold(existing)
-      } else if (fromUrl) {
-        // Shared link for a household this browser hasn't created yet —
-        // seed an empty shell so helpers can still join the same code.
-        const seeded = createHousehold('Shared pets')
-        seeded.id = fromUrl
-        saveHousehold(seeded)
-        setHousehold(seeded)
-      }
+  const refresh = useCallback(async (id: string) => {
+    const next = await fetchHousehold(id)
+    if (next) {
+      setHousehold(next)
+      rememberHouseholdId(next.id)
     }
-    setReady(true)
-  }, [])
-
-  const persist = useCallback((next: Household) => {
-    saveHousehold(next)
-    setHousehold(next)
-  }, [])
-
-  const startHousehold = useCallback((name: string) => {
-    const next = createHousehold(name)
-    saveHousehold(next)
-    const url = new URL(window.location.href)
-    url.searchParams.set('h', next.id)
-    window.history.replaceState({}, '', url.toString())
-    setHousehold(next)
     return next
   }, [])
 
-  const joinHousehold = useCallback((id: string) => {
-    const cleaned = id.trim().toLowerCase()
-    const existing = loadHousehold(cleaned)
-    if (existing) {
-      saveHousehold(existing)
-      const url = new URL(window.location.href)
-      url.searchParams.set('h', existing.id)
-      window.history.replaceState({}, '', url.toString())
+  useEffect(() => {
+    let cancelled = false
+
+    async function boot() {
+      if (!isCloudConfigured) {
+        setReady(true)
+        return
+      }
+
+      const fromUrl = householdFromUrl()
+      const id = fromUrl ?? getLastHouseholdId()
+      if (!id) {
+        setReady(true)
+        return
+      }
+
+      try {
+        const existing = await fetchHousehold(id)
+        if (cancelled) return
+        if (existing) {
+          setHousehold(existing)
+          rememberHouseholdId(existing.id)
+          setUrlHousehold(existing.id)
+        } else if (fromUrl) {
+          setError('That household code was not found. Ask for a fresh share link.')
+          clearLastHouseholdId()
+          setUrlHousehold(null)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Could not load household.')
+        }
+      } finally {
+        if (!cancelled) setReady(true)
+      }
+    }
+
+    void boot()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!household || !isCloudConfigured) return
+
+    const unsubscribe = subscribeHousehold(household.id, () => {
+      void refresh(household.id)
+    })
+
+    return unsubscribe
+  }, [household?.id, refresh])
+
+  const startHousehold = useCallback(async (name: string) => {
+    setError(null)
+    setBusy(true)
+    try {
+      const next = createHousehold(name)
+      await createHouseholdRemote(next)
+      rememberHouseholdId(next.id)
+      setUrlHousehold(next.id)
+      setHousehold(next)
+      return next
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not create household.')
+      throw err
+    } finally {
+      setBusy(false)
+    }
+  }, [])
+
+  const joinHousehold = useCallback(async (id: string) => {
+    setError(null)
+    setBusy(true)
+    try {
+      const cleaned = id.trim().toLowerCase()
+      const existing = await fetchHousehold(cleaned)
+      if (!existing) {
+        setError('No household found for that code. Check the link or code and try again.')
+        return null
+      }
+      rememberHouseholdId(existing.id)
+      setUrlHousehold(existing.id)
       setHousehold(existing)
       return existing
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not join household.')
+      throw err
+    } finally {
+      setBusy(false)
     }
-    const seeded = createHousehold('Shared pets')
-    seeded.id = cleaned
-    saveHousehold(seeded)
-    const url = new URL(window.location.href)
-    url.searchParams.set('h', seeded.id)
-    window.history.replaceState({}, '', url.toString())
-    setHousehold(seeded)
-    return seeded
   }, [])
 
   const addCheckIn = useCallback(
-    (checkIn: CheckIn) => {
+    async (checkIn: CheckIn) => {
       if (!household) return
-      persist({
+      setError(null)
+      setHousehold({
         ...household,
         checkIns: [checkIn, ...household.checkIns],
       })
+      try {
+        await insertCheckIn(household.id, checkIn)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not save check-in.')
+        await refresh(household.id)
+      }
     },
-    [household, persist],
+    [household, refresh],
   )
 
   const addTrip = useCallback(
-    (trip: Trip) => {
+    async (trip: Trip) => {
       if (!household) return
-      persist({
+      setError(null)
+      setHousehold({
         ...household,
         trips: [trip, ...household.trips],
       })
+      try {
+        await insertTrip(household.id, trip)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not save schedule.')
+        await refresh(household.id)
+      }
     },
-    [household, persist],
-  )
-
-  const updateTrip = useCallback(
-    (trip: Trip) => {
-      if (!household) return
-      persist({
-        ...household,
-        trips: household.trips.map((t) => (t.id === trip.id ? trip : t)),
-      })
-    },
-    [household, persist],
+    [household, refresh],
   )
 
   const deleteTrip = useCallback(
-    (tripId: string) => {
+    async (tripId: string) => {
       if (!household) return
-      persist({
+      setError(null)
+      setHousehold({
         ...household,
         trips: household.trips.filter((t) => t.id !== tripId),
       })
+      try {
+        await deleteTripRemote(tripId)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not remove schedule.')
+        await refresh(household.id)
+      }
     },
-    [household, persist],
-  )
-
-  const updateTasks = useCallback(
-    (tasks: string[]) => {
-      if (!household) return
-      persist({ ...household, tasks })
-    },
-    [household, persist],
-  )
-
-  const renameHousehold = useCallback(
-    (name: string) => {
-      if (!household) return
-      persist({ ...household, name: name.trim() || household.name })
-    },
-    [household, persist],
+    [household, refresh],
   )
 
   const leaveHousehold = useCallback(() => {
-    const url = new URL(window.location.href)
-    url.searchParams.delete('h')
-    window.history.replaceState({}, '', url.toString())
+    clearLastHouseholdId()
+    setUrlHousehold(null)
     setHousehold(null)
+    setError(null)
   }, [])
 
   return {
     household,
     ready,
+    busy,
+    error,
+    cloudReady: isCloudConfigured,
     startHousehold,
     joinHousehold,
     addCheckIn,
     addTrip,
-    updateTrip,
     deleteTrip,
-    updateTasks,
-    renameHousehold,
     leaveHousehold,
   }
 }

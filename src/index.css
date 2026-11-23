@@ -585,6 +585,26 @@ textarea {
   line-height: 1.45;
 }
 
+.banner {
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  line-height: 1.45;
+  font-size: 0.95rem;
+}
+
+.banner--warn {
+  background: rgba(212, 146, 58, 0.16);
+  border: 1px solid rgba(212, 146, 58, 0.45);
+  color: #7a4d10;
+}
+
+.banner--error {
+  background: rgba(176, 60, 60, 0.1);
+  border: 1px solid rgba(176, 60, 60, 0.35);
+  color: #8a2e2e;
+}
+
 @media (max-width: 560px) {
   .field-row {
     grid-template-columns: 1fr;

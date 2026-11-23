@@ -2,22 +2,26 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 
 interface WelcomeProps {
-  onCreate: (name: string) => void
-  onJoin: (code: string) => void
+  cloudReady: boolean
+  busy: boolean
+  error: string | null
+  onCreate: (name: string) => Promise<unknown>
+  onJoin: (code: string) => Promise<unknown>
 }
 
-export function Welcome({ onCreate, onJoin }: WelcomeProps) {
+export function Welcome({ cloudReady, busy, error, onCreate, onJoin }: WelcomeProps) {
   const [mode, setMode] = useState<'create' | 'join'>('create')
   const [petHome, setPetHome] = useState('')
   const [code, setCode] = useState('')
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault()
+    if (!cloudReady || busy) return
     if (mode === 'create') {
-      onCreate(petHome)
+      await onCreate(petHome)
       return
     }
-    if (code.trim()) onJoin(code)
+    if (code.trim()) await onJoin(code)
   }
 
   return (
@@ -27,8 +31,21 @@ export function Welcome({ onCreate, onJoin }: WelcomeProps) {
       <h1>Pet care, checked in.</h1>
       <p className="lede">
         When you&apos;re away, helpers log what they did — feedings, potty breaks,
-        meds — so everyone stays in sync.
+        litter — so everyone stays in sync.
       </p>
+
+      {!cloudReady && (
+        <div className="banner banner--warn" role="status">
+          Cloud sync isn&apos;t configured yet. Add Supabase keys to enable sharing
+          with neighbors.
+        </div>
+      )}
+
+      {error && (
+        <div className="banner banner--error" role="alert">
+          {error}
+        </div>
+      )}
 
       <div className="mode-toggle" role="tablist" aria-label="Get started">
         <button
@@ -37,6 +54,7 @@ export function Welcome({ onCreate, onJoin }: WelcomeProps) {
           aria-selected={mode === 'create'}
           className={mode === 'create' ? 'is-active' : undefined}
           onClick={() => setMode('create')}
+          disabled={!cloudReady || busy}
         >
           Start a home
         </button>
@@ -46,6 +64,7 @@ export function Welcome({ onCreate, onJoin }: WelcomeProps) {
           aria-selected={mode === 'join'}
           className={mode === 'join' ? 'is-active' : undefined}
           onClick={() => setMode('join')}
+          disabled={!cloudReady || busy}
         >
           Join with code
         </button>
@@ -61,6 +80,7 @@ export function Welcome({ onCreate, onJoin }: WelcomeProps) {
               placeholder="e.g. Kuroda pets"
               autoComplete="off"
               required
+              disabled={!cloudReady || busy}
             />
           </label>
         ) : (
@@ -73,11 +93,20 @@ export function Welcome({ onCreate, onJoin }: WelcomeProps) {
               autoComplete="off"
               spellCheck={false}
               required
+              disabled={!cloudReady || busy}
             />
           </label>
         )}
-        <button type="submit" className="btn btn--primary">
-          {mode === 'create' ? 'Create household' : 'Join household'}
+        <button
+          type="submit"
+          className="btn btn--primary"
+          disabled={!cloudReady || busy}
+        >
+          {busy
+            ? 'Working…'
+            : mode === 'create'
+              ? 'Create household'
+              : 'Join household'}
         </button>
       </form>
     </section>
