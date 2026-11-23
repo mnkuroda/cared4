@@ -34,6 +34,16 @@ export function ActivityLog({ checkIns }: ActivityLogProps) {
               </div>
               <p className="timeline__task">{entry.task}</p>
               {entry.note ? <p className="timeline__note">{entry.note}</p> : null}
+              {entry.photoUrl ? (
+                <a
+                  className="timeline__photo"
+                  href={entry.photoUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <img src={entry.photoUrl} alt={`${entry.task} at ${formatWhen(entry.at)}`} />
+                </a>
+              ) : null}
             </li>
           ))}
         </ol>

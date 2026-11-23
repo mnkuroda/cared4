@@ -27,6 +27,7 @@ type CheckInRow = {
   task: string
   note: string
   at: string
+  photo_url?: string | null
 }
 
 type TripRow = {
@@ -69,6 +70,7 @@ function mapCheckIn(row: CheckInRow): CheckIn {
     task: row.task,
     note: row.note ?? '',
     at: row.at,
+    photoUrl: row.photo_url ?? undefined,
   }
 }
 
@@ -140,6 +142,23 @@ export async function createHouseholdRemote(household: Household): Promise<House
   return household
 }
 
+export async function uploadCarePhoto(
+  householdId: string,
+  checkInId: string,
+  blob: Blob,
+): Promise<string> {
+  const client = requireClient()
+  const path = `${householdId}/${checkInId}.jpg`
+  const { error } = await client.storage.from('care-photos').upload(path, blob, {
+    cacheControl: '3600',
+    upsert: true,
+    contentType: 'image/jpeg',
+  })
+  if (error) throw error
+  const { data } = client.storage.from('care-photos').getPublicUrl(path)
+  return data.publicUrl
+}
+
 export async function insertCheckIn(householdId: string, checkIn: CheckIn): Promise<void> {
   const client = requireClient()
   const { error } = await client.from('check_ins').insert({
@@ -149,6 +168,7 @@ export async function insertCheckIn(householdId: string, checkIn: CheckIn): Prom
     task: checkIn.task,
     note: checkIn.note,
     at: checkIn.at,
+    photo_url: checkIn.photoUrl ?? null,
   })
   if (error) throw error
 }
@@ -164,6 +184,21 @@ export async function insertTrip(householdId: string, trip: Trip): Promise<void>
     notes: trip.notes,
     slots: trip.slots,
   })
+  if (error) throw error
+}
+
+export async function updateTripRemote(trip: Trip): Promise<void> {
+  const client = requireClient()
+  const { error } = await client
+    .from('trips')
+    .update({
+      title: trip.title,
+      start_date: trip.startDate,
+      end_date: trip.endDate,
+      notes: trip.notes,
+      slots: trip.slots,
+    })
+    .eq('id', trip.id)
   if (error) throw error
 }
 

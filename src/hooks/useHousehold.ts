@@ -6,7 +6,10 @@ import {
   insertCheckIn,
   insertTrip,
   subscribeHousehold,
+  updateTripRemote,
+  uploadCarePhoto,
 } from '../api/households'
+import { prepareCarePhoto } from '../lib/photo'
 import { isCloudConfigured } from '../lib/supabase'
 import {
   clearLastHouseholdId,
@@ -153,15 +156,21 @@ export function useHousehold() {
   }, [])
 
   const addCheckIn = useCallback(
-    async (checkIn: CheckIn) => {
+    async (checkIn: CheckIn, photo?: File | null) => {
       if (!household) return
       setError(null)
-      setHousehold({
-        ...household,
-        checkIns: [checkIn, ...household.checkIns],
-      })
       try {
-        await insertCheckIn(household.id, checkIn)
+        let photoUrl = checkIn.photoUrl
+        if (photo) {
+          const prepared = await prepareCarePhoto(photo)
+          photoUrl = await uploadCarePhoto(household.id, checkIn.id, prepared)
+        }
+        const saved: CheckIn = { ...checkIn, photoUrl }
+        setHousehold({
+          ...household,
+          checkIns: [saved, ...household.checkIns],
+        })
+        await insertCheckIn(household.id, saved)
       } catch (err) {
         setError(errorMessage(err, 'Could not save check-in.'))
         await refresh(household.id)
@@ -189,6 +198,27 @@ export function useHousehold() {
         await insertTrip(household.id, trip)
       } catch (err) {
         setError(errorMessage(err, 'Could not save schedule.'))
+        await refresh(household.id)
+      }
+    },
+    [household, refresh],
+  )
+
+  const updateTrip = useCallback(
+    async (trip: Trip) => {
+      if (!household || !isHouseholdOwner(household.id)) {
+        setError('Only the household creator can edit a trip.')
+        return
+      }
+      setError(null)
+      setHousehold({
+        ...household,
+        trips: household.trips.map((t) => (t.id === trip.id ? trip : t)),
+      })
+      try {
+        await updateTripRemote(trip)
+      } catch (err) {
+        setError(errorMessage(err, 'Could not update schedule.'))
         await refresh(household.id)
       }
     },
@@ -242,6 +272,7 @@ export function useHousehold() {
     joinHousehold,
     addCheckIn,
     addTrip,
+    updateTrip,
     deleteTrip,
     leaveHousehold,
     claimScheduleControl,

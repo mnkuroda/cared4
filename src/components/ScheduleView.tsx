@@ -8,6 +8,7 @@ interface ScheduleViewProps {
   tasks: string[]
   canManage: boolean
   onAdd: (trip: Trip) => void
+  onUpdate: (trip: Trip) => void
   onDelete: (tripId: string) => void
   onClaimControl?: () => void
 }
@@ -42,16 +43,20 @@ export function ScheduleView({
   tasks,
   canManage,
   onAdd,
+  onUpdate,
   onDelete,
   onClaimControl,
 }: ScheduleViewProps) {
   const [open, setOpen] = useState(false)
-  const canAdd = canManage && trips.length === 0
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [title, setTitle] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [notes, setNotes] = useState('')
   const [slots, setSlots] = useState<ScheduleSlot[]>(() => defaultSlots(tasks))
+
+  const canAdd = canManage && trips.length === 0
+  const isEditing = Boolean(editingId)
 
   function updateSlotTime(id: string, time: string) {
     setSlots((prev) => prev.map((s) => (s.id === id ? { ...s, time } : s)))
@@ -87,7 +92,33 @@ export function ScheduleView({
     setEndDate('')
     setNotes('')
     setSlots(defaultSlots(tasks))
+    setEditingId(null)
     setOpen(false)
+  }
+
+  function beginCreate() {
+    setEditingId(null)
+    setTitle('')
+    setStartDate('')
+    setEndDate('')
+    setNotes('')
+    setSlots(defaultSlots(tasks))
+    setOpen(true)
+  }
+
+  function beginEdit(trip: Trip) {
+    setEditingId(trip.id)
+    setTitle(trip.title)
+    setStartDate(trip.startDate)
+    setEndDate(trip.endDate)
+    setNotes(trip.notes)
+    setSlots(
+      trip.slots.map((slot) => ({
+        ...slot,
+        tasks: [...slot.tasks],
+      })),
+    )
+    setOpen(true)
   }
 
   function handleSubmit(event: FormEvent) {
@@ -104,14 +135,17 @@ export function ScheduleView({
 
     if (cleaned.length === 0) return
 
-    onAdd({
-      id: newTripId(),
+    const payload: Trip = {
+      id: editingId ?? newTripId(),
       title: title.trim(),
       startDate,
       endDate,
       notes: notes.trim(),
       slots: cleaned,
-    })
+    }
+
+    if (editingId) onUpdate(payload)
+    else onAdd(payload)
     resetForm()
   }
 
@@ -122,17 +156,18 @@ export function ScheduleView({
           <h2>Care schedule</h2>
           <p>
             {canManage
-              ? 'Add one trip, or remove it to replace with a new one.'
+              ? 'Add a trip, then edit or remove it anytime.'
               : 'View-only — helpers can check in, but only the creator manages trips.'}
           </p>
         </div>
-        {canAdd && (
-          <button
-            type="button"
-            className="btn btn--ghost"
-            onClick={() => setOpen((v) => !v)}
-          >
-            {open ? 'Cancel' : 'New trip'}
+        {canAdd && !open && (
+          <button type="button" className="btn btn--ghost" onClick={beginCreate}>
+            New trip
+          </button>
+        )}
+        {open && (
+          <button type="button" className="btn btn--ghost" onClick={resetForm}>
+            Cancel
           </button>
         )}
       </header>
@@ -146,13 +181,7 @@ export function ScheduleView({
         </div>
       )}
 
-      {canManage && trips.length > 0 && !open && (
-        <p className="slots__hint">
-          Remove the current trip if you need to set different dates or times.
-        </p>
-      )}
-
-      {open && canAdd && (
+      {open && canManage && (
         <form className="stack-form schedule__form" onSubmit={handleSubmit}>
           <label>
             <span>Trip name</span>
@@ -243,7 +272,7 @@ export function ScheduleView({
           </label>
 
           <button type="submit" className="btn btn--primary">
-            Save schedule
+            {isEditing ? 'Save changes' : 'Save schedule'}
           </button>
         </form>
       )}
@@ -263,14 +292,23 @@ export function ScheduleView({
                   <h3>{trip.title}</h3>
                   <p className="trip__dates">{formatRange(trip.startDate, trip.endDate)}</p>
                 </div>
-                {canManage && (
-                  <button
-                    type="button"
-                    className="btn btn--ghost"
-                    onClick={() => onDelete(trip.id)}
-                  >
-                    Remove
-                  </button>
+                {canManage && !open && (
+                  <div className="trip__actions">
+                    <button
+                      type="button"
+                      className="btn btn--ghost"
+                      onClick={() => beginEdit(trip)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--ghost"
+                      onClick={() => onDelete(trip.id)}
+                    >
+                      Remove
+                    </button>
+                  </div>
                 )}
               </div>
               <ul className="trip__slots">

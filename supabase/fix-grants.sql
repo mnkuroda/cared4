@@ -4,4 +4,7 @@
 grant usage on schema public to anon, authenticated;
 grant select, insert, update on public.households to anon, authenticated;
 grant select, insert on public.check_ins to anon, authenticated;
-grant select, insert, delete on public.trips to anon, authenticated;
+grant select, insert, update, delete on public.trips to anon, authenticated;
+
+drop policy if exists "trips_update" on public.trips;
+create policy "trips_update" on public.trips for update using (true) with check (true);

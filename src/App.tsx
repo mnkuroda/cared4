@@ -26,6 +26,7 @@ export default function App() {
     joinHousehold,
     addCheckIn,
     addTrip,
+    updateTrip,
     deleteTrip,
     leaveHousehold,
     isOwner,
@@ -100,6 +101,7 @@ export default function App() {
             tasks={household.tasks}
             canManage={isOwner}
             onAdd={addTrip}
+            onUpdate={updateTrip}
             onDelete={deleteTrip}
             onClaimControl={isOwner ? undefined : claimScheduleControl}
           />

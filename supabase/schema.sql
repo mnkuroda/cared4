@@ -13,7 +13,8 @@ create table if not exists public.check_ins (
   person_name text not null,
   task text not null,
   note text not null default '',
-  at timestamptz not null
+  at timestamptz not null,
+  photo_url text
 );
 
 create index if not exists check_ins_household_at_idx
@@ -41,7 +42,7 @@ alter table public.trips enable row level security;
 grant usage on schema public to anon, authenticated;
 grant select, insert, update on public.households to anon, authenticated;
 grant select, insert on public.check_ins to anon, authenticated;
-grant select, insert, delete on public.trips to anon, authenticated;
+grant select, insert, update, delete on public.trips to anon, authenticated;
 
 -- Share-link model: anyone with the household code can read/write.
 -- Fine for a private pet-care helper link; not for sensitive data.
@@ -60,7 +61,9 @@ create policy "check_ins_insert" on public.check_ins for insert with check (true
 
 drop policy if exists "trips_select" on public.trips;
 drop policy if exists "trips_insert" on public.trips;
+drop policy if exists "trips_update" on public.trips;
 drop policy if exists "trips_delete" on public.trips;
 create policy "trips_select" on public.trips for select using (true);
 create policy "trips_insert" on public.trips for insert with check (true);
+create policy "trips_update" on public.trips for update using (true) with check (true);
 create policy "trips_delete" on public.trips for delete using (true);

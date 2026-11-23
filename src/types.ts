@@ -12,6 +12,7 @@ export interface CheckIn {
   task: string
   note: string
   at: string
+  photoUrl?: string
 }
 
 export interface ScheduleSlot {
