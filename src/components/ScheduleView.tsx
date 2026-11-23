@@ -27,25 +27,43 @@ function formatTime(time: string): string {
   return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
 }
 
+function defaultSlots(taskOptions: string[]): ScheduleSlot[] {
+  const starter = taskOptions.slice(0, 1)
+  return [
+    { id: newSlotId(), time: '08:00', tasks: [...starter] },
+    { id: newSlotId(), time: '18:00', tasks: [...starter] },
+  ]
+}
+
 export function ScheduleView({ trips, tasks, onAdd, onDelete }: ScheduleViewProps) {
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [notes, setNotes] = useState('')
-  const [slots, setSlots] = useState<ScheduleSlot[]>([
-    { id: newSlotId(), time: '08:00', task: tasks[0] ?? 'Fed dogs' },
-    { id: newSlotId(), time: '18:00', task: tasks[0] ?? 'Fed dogs' },
-  ])
+  const [slots, setSlots] = useState<ScheduleSlot[]>(() => defaultSlots(tasks))
 
-  function updateSlot(id: string, patch: Partial<ScheduleSlot>) {
-    setSlots((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)))
+  function updateSlotTime(id: string, time: string) {
+    setSlots((prev) => prev.map((s) => (s.id === id ? { ...s, time } : s)))
+  }
+
+  function toggleSlotTask(id: string, task: string) {
+    setSlots((prev) =>
+      prev.map((s) => {
+        if (s.id !== id) return s
+        const has = s.tasks.includes(task)
+        return {
+          ...s,
+          tasks: has ? s.tasks.filter((t) => t !== task) : [...s.tasks, task],
+        }
+      }),
+    )
   }
 
   function addSlot() {
     setSlots((prev) => [
       ...prev,
-      { id: newSlotId(), time: '12:00', task: tasks[0] ?? 'Fed dogs' },
+      { id: newSlotId(), time: '12:00', tasks: tasks.slice(0, 1) },
     ])
   }
 
@@ -58,10 +76,7 @@ export function ScheduleView({ trips, tasks, onAdd, onDelete }: ScheduleViewProp
     setStartDate('')
     setEndDate('')
     setNotes('')
-    setSlots([
-      { id: newSlotId(), time: '08:00', task: tasks[0] ?? 'Fed dogs' },
-      { id: newSlotId(), time: '18:00', task: tasks[0] ?? 'Fed dogs' },
-    ])
+    setSlots(defaultSlots(tasks))
     setOpen(false)
   }
 
@@ -69,13 +84,23 @@ export function ScheduleView({ trips, tasks, onAdd, onDelete }: ScheduleViewProp
     event.preventDefault()
     if (!title.trim() || !startDate || !endDate) return
 
+    const cleaned = slots
+      .map((slot) => ({
+        ...slot,
+        tasks: slot.tasks.filter(Boolean),
+      }))
+      .filter((slot) => slot.tasks.length > 0)
+      .sort((a, b) => a.time.localeCompare(b.time))
+
+    if (cleaned.length === 0) return
+
     onAdd({
       id: newTripId(),
       title: title.trim(),
       startDate,
       endDate,
       notes: notes.trim(),
-      slots: [...slots].sort((a, b) => a.time.localeCompare(b.time)),
+      slots: cleaned,
     })
     resetForm()
   }
@@ -131,40 +156,44 @@ export function ScheduleView({ trips, tasks, onAdd, onDelete }: ScheduleViewProp
 
           <fieldset className="slots">
             <legend>Daily care times</legend>
+            <p className="slots__hint">Pick a time, then check everything needed at that time.</p>
             {slots.map((slot) => (
-              <div key={slot.id} className="slot-row">
-                <label className="sr-only" htmlFor={`time-${slot.id}`}>
-                  Time
-                </label>
-                <input
-                  id={`time-${slot.id}`}
-                  type="time"
-                  value={slot.time}
-                  onChange={(e) => updateSlot(slot.id, { time: e.target.value })}
-                  required
-                />
-                <label className="sr-only" htmlFor={`task-${slot.id}`}>
-                  Task
-                </label>
-                <select
-                  id={`task-${slot.id}`}
-                  value={slot.task}
-                  onChange={(e) => updateSlot(slot.id, { task: e.target.value })}
-                >
-                  {tasks.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  className="btn btn--icon"
-                  aria-label="Remove time"
-                  onClick={() => removeSlot(slot.id)}
-                >
-                  ×
-                </button>
+              <div key={slot.id} className="slot-block">
+                <div className="slot-block__time">
+                  <label className="sr-only" htmlFor={`time-${slot.id}`}>
+                    Time
+                  </label>
+                  <input
+                    id={`time-${slot.id}`}
+                    type="time"
+                    value={slot.time}
+                    onChange={(e) => updateSlotTime(slot.id, e.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="btn btn--icon"
+                    aria-label="Remove time"
+                    onClick={() => removeSlot(slot.id)}
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="task-checks" role="group" aria-label={`Tasks at ${slot.time}`}>
+                  {tasks.map((item) => {
+                    const checked = slot.tasks.includes(item)
+                    return (
+                      <label key={item} className={checked ? 'is-checked' : undefined}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleSlotTask(slot.id, item)}
+                        />
+                        <span>{item}</span>
+                      </label>
+                    )
+                  })}
+                </div>
               </div>
             ))}
             <button type="button" className="btn btn--ghost" onClick={addSlot}>
@@ -211,7 +240,7 @@ export function ScheduleView({ trips, tasks, onAdd, onDelete }: ScheduleViewProp
                 {trip.slots.map((slot) => (
                   <li key={slot.id}>
                     <strong>{formatTime(slot.time)}</strong>
-                    <span>{slot.task}</span>
+                    <span>{slot.tasks.join(' · ')}</span>
                   </li>
                 ))}
               </ul>

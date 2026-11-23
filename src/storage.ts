@@ -1,4 +1,4 @@
-import { DEFAULT_TASKS, type Household } from './types'
+import { DEFAULT_TASKS, normalizeTrip, type Household } from './types'
 
 const STORAGE_PREFIX = 'cared4:household:'
 const LAST_HOUSEHOLD_KEY = 'cared4:lastHouseholdId'
@@ -32,7 +32,11 @@ export function loadHousehold(id: string): Household | null {
   try {
     const raw = localStorage.getItem(STORAGE_PREFIX + id)
     if (!raw) return null
-    return JSON.parse(raw) as Household
+    const parsed = JSON.parse(raw) as Household
+    return {
+      ...parsed,
+      trips: (parsed.trips ?? []).map(normalizeTrip),
+    }
   } catch {
     return null
   }

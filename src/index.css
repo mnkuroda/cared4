@@ -449,18 +449,70 @@ textarea {
   gap: 0.65rem;
 }
 
-.slot-row {
-  display: grid;
-  grid-template-columns: minmax(11.5rem, 13rem) 1fr auto;
-  gap: 0.5rem;
-  align-items: center;
+.slots__hint {
+  margin: -0.15rem 0 0.15rem;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
 }
 
-.slot-row input[type='time'] {
+.slot-block {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.slot-block__time {
+  display: grid;
+  grid-template-columns: minmax(11.5rem, 13rem) auto;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: start;
+}
+
+.slot-block__time input[type='time'] {
   min-width: 0;
   width: 100%;
   padding-inline: 0.65rem;
   font-variant-numeric: tabular-nums;
+}
+
+.task-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.task-checks label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper-2);
+  font-size: 0.92rem;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+}
+
+.task-checks label.is-checked {
+  border-color: var(--forest);
+  background: rgba(42, 107, 78, 0.1);
+  color: var(--forest-deep);
+}
+
+.task-checks input {
+  width: auto;
+  margin: 0;
+  accent-color: var(--forest);
+}
+
+.trip__slots span {
+  line-height: 1.35;
 }
 
 .trip-list {
@@ -538,13 +590,8 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .slot-row {
-    grid-template-columns: minmax(11.5rem, 1fr) auto;
-  }
-
-  .slot-row select {
-    grid-column: 1 / -1;
-    order: 3;
+  .slot-block__time {
+    grid-template-columns: 1fr auto;
   }
 
   .share-bar__actions {
