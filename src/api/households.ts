@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase'
 import {
   DEFAULT_TASKS,
+  canonicalTask,
   normalizeSlot,
   type Assignment,
   type CheckIn,
@@ -9,16 +10,6 @@ import {
 } from '../types'
 
 const REMOVED_TASKS = new Set(['Gave medication', 'Scooped litter'])
-
-const TASK_RENAMES: Record<string, string> = {
-  'Fed cats': 'Feed cat(s)',
-  'Fed dogs': 'Feed dog(s)',
-  'Feed cats': 'Feed cat(s)',
-  'Feed dogs': 'Feed dog(s)',
-  'Let dogs out': 'Let dog(s) out',
-  'Refilled water': 'Refill water',
-  'Emptied litter robot': 'Empty litter robot',
-}
 
 type HouseholdRow = {
   id: string
@@ -66,7 +57,7 @@ function requireClient() {
 
 function migrateTasks(tasks: string[]): string[] {
   const renamed = (tasks ?? [...DEFAULT_TASKS])
-    .map((task) => TASK_RENAMES[task] ?? task)
+    .map((task) => canonicalTask(task))
     .filter((task) => !REMOVED_TASKS.has(task))
 
   const next: string[] = []
@@ -83,7 +74,7 @@ function mapCheckIn(row: CheckInRow): CheckIn {
   return {
     id: row.id,
     personName: row.person_name,
-    task: row.task,
+    task: canonicalTask(row.task),
     note: row.note ?? '',
     at: row.at,
     photoUrl: row.photo_url ?? undefined,

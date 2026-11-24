@@ -33,6 +33,7 @@ export default function App() {
     claimScheduleControl,
     saveAssignments,
     removeAssignment,
+    claimOpenTask,
   } = useHousehold()
   const [tab, setTab] = useState<TabId>('calendar')
 
@@ -91,7 +92,12 @@ export default function App() {
             trips={household.trips}
             checkIns={household.checkIns}
             assignments={household.assignments}
+            knownNames={[
+              ...household.checkIns.map((entry) => entry.personName),
+              ...household.assignments.map((entry) => entry.personName),
+            ]}
             onCheckIn={() => setTab('checkin')}
+            onClaimOpenTask={claimOpenTask}
           />
         )}
         {tab === 'checkin' && (

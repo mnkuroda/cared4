@@ -20,9 +20,21 @@ import {
   getLastHouseholdId,
   isHouseholdOwner,
   markHouseholdOwner,
+  newAssignmentId,
+  newCheckInId,
   rememberHouseholdId,
 } from '../storage'
+import { parseDateKey, toDateKey } from '../lib/careStatus'
 import type { Assignment, CheckIn, Household, Trip } from '../types'
+
+function checkInTimestamp(dateKey: string, time: string): string {
+  const today = toDateKey(new Date())
+  if (dateKey === today) return new Date().toISOString()
+  const [hours, minutes] = time.split(':').map((part) => Number(part))
+  const stamp = parseDateKey(dateKey)
+  stamp.setHours(Number.isFinite(hours) ? hours : 12, Number.isFinite(minutes) ? minutes : 0, 0, 0)
+  return stamp.toISOString()
+}
 
 function householdFromUrl(): string | null {
   const params = new URLSearchParams(window.location.search)
@@ -317,6 +329,73 @@ export function useHousehold() {
     [household, refresh],
   )
 
+  const claimOpenTask = useCallback(
+    async (input: {
+      tripId: string
+      dateKey: string
+      time: string
+      tasks: string[]
+      personName: string
+    }) => {
+      if (!household) return
+      const personName = input.personName.trim()
+      if (!personName) return
+      const tasks = [...new Set(input.tasks.map((task) => task.trim()).filter(Boolean))]
+      if (tasks.length === 0) return
+
+      setError(null)
+
+      const at = checkInTimestamp(input.dateKey, input.time)
+      const checkIns: CheckIn[] = tasks.map((task) => ({
+        id: newCheckInId(),
+        personName,
+        task,
+        note: '',
+        at,
+      }))
+
+      const alreadyAssigned = household.assignments.some(
+        (item) =>
+          item.tripId === input.tripId &&
+          item.date === input.dateKey &&
+          item.time === input.time &&
+          item.personName.trim().toLowerCase() === personName.toLowerCase(),
+      )
+
+      const assignment: Assignment | null = alreadyAssigned
+        ? null
+        : {
+            id: newAssignmentId(),
+            tripId: input.tripId,
+            date: input.dateKey,
+            time: input.time,
+            personName,
+          }
+
+      setHousehold({
+        ...household,
+        checkIns: [...checkIns, ...household.checkIns],
+        assignments: assignment
+          ? [...household.assignments, assignment].sort((a, b) =>
+              a.date === b.date ? a.time.localeCompare(b.time) : a.date.localeCompare(b.date),
+            )
+          : household.assignments,
+      })
+
+      try {
+        for (const checkIn of checkIns) {
+          await insertCheckIn(household.id, checkIn)
+        }
+        if (assignment) await insertAssignments(household.id, [assignment])
+      } catch (err) {
+        setError(errorMessage(err, 'Could not assign this care routine.'))
+        await refresh(household.id)
+        throw err
+      }
+    },
+    [household, refresh],
+  )
+
   return {
     household,
     ready,
@@ -334,5 +413,6 @@ export function useHousehold() {
     claimScheduleControl,
     saveAssignments,
     removeAssignment,
+    claimOpenTask,
   }
 }

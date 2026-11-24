@@ -6,17 +6,27 @@ import {
   formatSlotTime,
   monthMatrix,
   parseDateKey,
+  routineLabel,
   toDateKey,
   type DaySlotStatus,
 } from '../lib/careStatus'
 import { personColor, personInitials } from '../lib/people'
 import type { Assignment, CheckIn, Trip } from '../types'
+import { ClaimOpenTask, type ClaimTarget } from './ClaimOpenTask'
 
 interface CareCalendarProps {
   trips: Trip[]
   checkIns: CheckIn[]
   assignments: Assignment[]
+  knownNames?: string[]
   onCheckIn: () => void
+  onClaimOpenTask: (input: {
+    tripId: string
+    dateKey: string
+    time: string
+    tasks: string[]
+    personName: string
+  }) => void | Promise<void>
 }
 
 type CalendarZoom = 'month' | 'week' | 'day'
@@ -87,9 +97,11 @@ function PersonChip({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' })
 function DaySlotList({
   slotStatuses,
   dayAssignments,
+  onClaimRoutine,
 }: {
   slotStatuses: DaySlotStatus[]
   dayAssignments: Assignment[]
+  onClaimRoutine: (time: string, openTasks: string[]) => void
 }) {
   if (slotStatuses.length === 0) {
     return <p className="empty">This trip has no daily care times yet.</p>
@@ -103,13 +115,17 @@ function DaySlotList({
             .filter((item) => item.time === slot.time)
             .map((item) => item.personName),
         )
+        const openTasks = tasks.filter((item) => !item.done).map((item) => item.task)
         return (
           <li
             key={slot.id}
             className={openCount > 0 ? 'cal-slot is-open' : 'cal-slot is-done'}
           >
             <div className="cal-slot__time">
-              <strong>{formatSlotTime(slot.time)}</strong>
+              <div className="cal-slot__title">
+                <strong>{routineLabel(slot.time)}</strong>
+                <span className="cal-slot__clock">{formatSlotTime(slot.time)}</span>
+              </div>
               <span>{slotStatusLabel(openCount, assignees.length)}</span>
             </div>
             {assignees.length > 0 ? (
@@ -121,7 +137,7 @@ function DaySlotList({
             ) : (
               <p className="cal-slot__unassigned">No one assigned yet</p>
             )}
-            <ul className="cal-slot__tasks">
+            <ul className="cal-slot__details">
               {tasks.map((item) => (
                 <li
                   key={`${slot.id}-${item.task}`}
@@ -139,11 +155,20 @@ function DaySlotList({
                         : ''}
                     </em>
                   ) : (
-                    <em>Still open</em>
+                    <em>Open</em>
                   )}
                 </li>
               ))}
             </ul>
+            {openTasks.length > 0 && (
+              <button
+                type="button"
+                className="btn btn--primary routine-claim"
+                onClick={() => onClaimRoutine(slot.time, openTasks)}
+              >
+                Assign this routine
+              </button>
+            )}
           </li>
         )
       })}
@@ -151,9 +176,17 @@ function DaySlotList({
   )
 }
 
-export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCalendarProps) {
+export function CareCalendar({
+  trips,
+  checkIns,
+  assignments,
+  knownNames = [],
+  onCheckIn,
+  onClaimOpenTask,
+}: CareCalendarProps) {
   const todayKey = toDateKey(new Date())
   const [zoom, setZoom] = useState<CalendarZoom>('week')
+  const [claimTarget, setClaimTarget] = useState<ClaimTarget | null>(null)
   const [cursor, setCursor] = useState(() => {
     const now = new Date()
     return { year: now.getFullYear(), month: now.getMonth() }
@@ -262,6 +295,19 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
     return uniqueNames((assignmentsByDay.get(dateKey) ?? []).map((item) => item.personName))
   }
 
+  function openClaim(dateKey: string, time: string, tasks: string[]) {
+    const trip = activeTripOn(trips, dateKey)
+    if (!trip || tasks.length === 0) return
+    setSelectedKey(dateKey)
+    setClaimTarget({
+      dateKey,
+      time,
+      tasks,
+      tripId: trip.id,
+      tripTitle: trip.title,
+    })
+  }
+
   function renderDayDetail(dateKey: string) {
     const trip = activeTripOn(trips, dateKey)
     const statuses = trip ? daySlotStatuses(trip.slots, checkIns, dateKey) : []
@@ -284,7 +330,11 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
             Add a trip under Schedule to show care times on the calendar.
           </p>
         ) : (
-          <DaySlotList slotStatuses={statuses} dayAssignments={assigns} />
+          <DaySlotList
+            slotStatuses={statuses}
+            dayAssignments={assigns}
+            onClaimRoutine={(time, openTasks) => openClaim(dateKey, time, openTasks)}
+          />
         )}
 
         {trip && (
@@ -302,7 +352,7 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
     <section className="panel calendar">
       <header className="panel__header">
         <h2>Care calendar</h2>
-        <p>See who is covering each care time and what is still open.</p>
+        <p>Each care time is one visit. Assign the whole routine, with tasks listed as details.</p>
       </header>
 
       <div className="mode-toggle cal-zoom" role="tablist" aria-label="Calendar zoom">
@@ -472,6 +522,10 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
                       )
                       const status = daySlotStatuses([slot], checkIns, dateKey)[0]
                       const openCount = status?.openCount ?? 0
+                      const openTasks =
+                        status?.tasks
+                          .filter((item) => !item.done)
+                          .map((item) => item.task) ?? []
                       return (
                         <li
                           key={slot.id}
@@ -480,7 +534,12 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
                           }
                         >
                           <div className="week-slot__meta">
-                            <strong>{formatSlotTime(slot.time)}</strong>
+                            <div className="week-slot__title">
+                              <strong>{routineLabel(slot.time)}</strong>
+                              <span className="week-slot__clock">
+                                {formatSlotTime(slot.time)}
+                              </span>
+                            </div>
                             <span>{slotStatusLabel(openCount, names.length)}</span>
                           </div>
                           {names.length === 0 ? (
@@ -493,7 +552,7 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
                             </div>
                           )}
                           {status && (
-                            <ul className="week-slot__task-list">
+                            <ul className="week-slot__details">
                               {status.tasks.map((item) => (
                                 <li
                                   key={`${slot.id}-${item.task}`}
@@ -504,6 +563,15 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
                                 </li>
                               ))}
                             </ul>
+                          )}
+                          {openTasks.length > 0 && (
+                            <button
+                              type="button"
+                              className="btn btn--primary routine-claim routine-claim--compact"
+                              onClick={() => openClaim(dateKey, slot.time, openTasks)}
+                            >
+                              Assign routine
+                            </button>
                           )}
                         </li>
                       )
@@ -561,6 +629,24 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
             </div>
           )}
         </div>
+      )}
+
+      {claimTarget && (
+        <ClaimOpenTask
+          target={claimTarget}
+          knownNames={knownNames}
+          onCancel={() => setClaimTarget(null)}
+          onClaim={async (personName) => {
+            await onClaimOpenTask({
+              tripId: claimTarget.tripId,
+              dateKey: claimTarget.dateKey,
+              time: claimTarget.time,
+              tasks: claimTarget.tasks,
+              personName,
+            })
+            setClaimTarget(null)
+          }}
+        />
       )}
     </section>
   )

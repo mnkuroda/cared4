@@ -1,10 +1,26 @@
 export const DEFAULT_TASKS = [
-  'Feed cat(s)',
+  'Feed cat',
   'Feed dog(s)',
   'Let dog(s) out',
   'Refill water',
   'Empty litter robot',
 ] as const
+
+/** Older wording → current task labels. */
+export const TASK_RENAMES: Record<string, string> = {
+  'Fed cats': 'Feed cat',
+  'Feed cats': 'Feed cat',
+  'Feed cat(s)': 'Feed cat',
+  'Fed dogs': 'Feed dog(s)',
+  'Feed dogs': 'Feed dog(s)',
+  'Let dogs out': 'Let dog(s) out',
+  'Refilled water': 'Refill water',
+  'Emptied litter robot': 'Empty litter robot',
+}
+
+export function canonicalTask(task: string): string {
+  return TASK_RENAMES[task] ?? task
+}
 
 export interface CheckIn {
   id: string
@@ -60,13 +76,14 @@ export interface Household {
 export type TabId = 'calendar' | 'checkin' | 'log' | 'schedule'
 
 export function normalizeSlot(slot: LegacyScheduleSlot): ScheduleSlot {
-  if (Array.isArray(slot.tasks) && slot.tasks.length > 0) {
-    return { id: slot.id, time: slot.time, tasks: [...slot.tasks] }
-  }
-  if (typeof slot.task === 'string' && slot.task) {
-    return { id: slot.id, time: slot.time, tasks: [slot.task] }
-  }
-  return { id: slot.id, time: slot.time, tasks: [] }
+  const raw =
+    Array.isArray(slot.tasks) && slot.tasks.length > 0
+      ? slot.tasks
+      : typeof slot.task === 'string' && slot.task
+        ? [slot.task]
+        : []
+  const tasks = [...new Set(raw.map(canonicalTask).filter(Boolean))]
+  return { id: slot.id, time: slot.time, tasks }
 }
 
 export function normalizeTrip(trip: Trip & { slots: LegacyScheduleSlot[] }): Trip {

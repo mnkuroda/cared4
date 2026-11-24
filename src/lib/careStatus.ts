@@ -1,4 +1,4 @@
-import type { CheckIn, ScheduleSlot, Trip } from '../types'
+import { canonicalTask, type CheckIn, type ScheduleSlot, type Trip } from '../types'
 
 export function toDateKey(date: Date): string {
   const y = date.getFullYear()
@@ -57,9 +57,10 @@ export function daySlotStatuses(
   return [...slots]
     .sort((a, b) => a.time.localeCompare(b.time))
     .map((slot) => {
-      const tasks = slot.tasks.map((task) => {
+      const uniqueTasks = [...new Set(slot.tasks.map(canonicalTask).filter(Boolean))]
+      const tasks = uniqueTasks.map((task) => {
         const match = dayLogs.find(
-          (entry) => entry.task === task && !used.has(entry.id),
+          (entry) => canonicalTask(entry.task) === task && !used.has(entry.id),
         )
         if (match) used.add(match.id)
         return {
@@ -71,7 +72,7 @@ export function daySlotStatuses(
       })
       const doneCount = tasks.filter((t) => t.done).length
       return {
-        slot,
+        slot: { ...slot, tasks: uniqueTasks },
         tasks,
         doneCount,
         openCount: tasks.length - doneCount,
@@ -84,6 +85,17 @@ export function formatSlotTime(time: string): string {
   const d = new Date()
   d.setHours(h, m, 0, 0)
   return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+}
+
+/** Friendly visit name for a care time (helpers usually do the whole group). */
+export function routineLabel(time: string): string {
+  const hour = Number(time.split(':')[0])
+  if (!Number.isFinite(hour)) return 'Care Routine'
+  if (hour < 10) return 'Morning Routine'
+  if (hour < 14) return 'Midday Routine'
+  if (hour < 17) return 'Afternoon Routine'
+  if (hour < 21) return 'Evening Routine'
+  return 'Night Routine'
 }
 
 export function monthMatrix(year: number, monthIndex: number): (string | null)[][] {
