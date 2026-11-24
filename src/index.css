@@ -39,6 +39,7 @@ body,
 body {
   margin: 0;
   min-width: 320px;
+  overflow-x: hidden;
   background:
     radial-gradient(1200px 600px at 10% -10%, rgba(106, 168, 130, 0.28), transparent 55%),
     radial-gradient(900px 500px at 100% 0%, rgba(212, 146, 58, 0.16), transparent 50%),
@@ -90,10 +91,13 @@ p {
 }
 
 .app-shell {
-  width: min(720px, calc(100% - 2rem));
+  width: min(720px, calc(100% - 1.25rem));
+  max-width: 100%;
   margin: 0 auto;
   padding: 1.25rem 0 3rem;
   animation: rise 0.55s ease both;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .app-shell--welcome {
@@ -156,12 +160,28 @@ p {
 
 .mode-toggle {
   display: inline-flex;
+  flex-wrap: wrap;
   gap: 0.25rem;
   padding: 0.25rem;
   background: rgba(255, 255, 255, 0.55);
   border: 1px solid var(--line);
   border-radius: 999px;
   margin-bottom: 1.25rem;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.mode-toggle.cal-zoom {
+  display: flex;
+  width: 100%;
+  border-radius: 14px;
+}
+
+.mode-toggle.cal-zoom button {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0.55rem 0.4rem;
+  text-align: center;
 }
 
 .mode-toggle button {
@@ -348,6 +368,14 @@ textarea {
   box-shadow: var(--shadow);
   backdrop-filter: blur(8px);
   animation: rise 0.4s ease both;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+  box-sizing: border-box;
+}
+
+.panel.calendar {
+  overflow-x: clip;
 }
 
 .panel__header {
@@ -715,8 +743,11 @@ textarea {
 
 .cal-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 0.35rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .cal-grid__head {
@@ -725,6 +756,13 @@ textarea {
   font-weight: 600;
   color: var(--ink-soft);
   padding-bottom: 0.25rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.cal-grid__head-short {
+  display: none;
 }
 
 .cal-cell {
@@ -735,8 +773,12 @@ textarea {
   display: grid;
   place-items: center;
   gap: 0.15rem;
-  padding: 0.2rem;
+  padding: 0.15rem;
   position: relative;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .cal-cell--empty {
@@ -754,7 +796,7 @@ textarea {
 .cal-cell.is-selected {
   border-color: var(--forest);
   background: rgba(42, 107, 78, 0.16);
-  box-shadow: 0 0 0 2px rgba(42, 107, 78, 0.12);
+  box-shadow: inset 0 0 0 2px rgba(42, 107, 78, 0.18);
 }
 
 .cal-cell__day {
@@ -1503,12 +1545,78 @@ textarea {
 }
 
 @media (max-width: 560px) {
+  .app-shell {
+    width: calc(100% - 0.75rem);
+    padding-top: 0.85rem;
+  }
+
+  .panel {
+    padding: 0.85rem;
+    border-radius: 16px;
+  }
+
   .tabs--four button {
     font-size: 0.8rem;
   }
 
+  .cal-nav {
+    gap: 0.35rem;
+  }
+
   .cal-nav .btn {
-    padding-inline: 0.7rem;
+    padding-inline: 0.55rem;
+    font-size: 0.85rem;
+  }
+
+  .cal-nav__label {
+    font-size: 1rem;
+  }
+
+  .cal-grid {
+    gap: 0.2rem;
+  }
+
+  .cal-grid__head {
+    font-size: 0.72rem;
+  }
+
+  .cal-grid__head-full {
+    display: none;
+  }
+
+  .cal-grid__head-short {
+    display: inline;
+  }
+
+  .cal-cell {
+    aspect-ratio: auto;
+    min-height: 2.6rem;
+    border-radius: 9px;
+    gap: 0.08rem;
+    padding: 0.12rem 0.08rem;
+  }
+
+  .cal-cell__day {
+    font-size: 0.8rem;
+  }
+
+  .cal-cell__avatars {
+    gap: 0.08rem;
+  }
+
+  .cal-cell .cal-avatar {
+    width: 0.95rem;
+    height: 0.95rem;
+    font-size: 0.48rem;
+  }
+
+  .cal-legend {
+    gap: 0.45rem 0.7rem;
+    font-size: 0.78rem;
+  }
+
+  .person-chip {
+    max-width: 100%;
   }
 }
 

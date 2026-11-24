@@ -31,7 +31,15 @@ interface CareCalendarProps {
 
 type CalendarZoom = 'month' | 'week' | 'day'
 
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const WEEKDAYS = [
+  { short: 'S', label: 'Sunday' },
+  { short: 'M', label: 'Monday' },
+  { short: 'T', label: 'Tuesday' },
+  { short: 'W', label: 'Wednesday' },
+  { short: 'T', label: 'Thursday' },
+  { short: 'F', label: 'Friday' },
+  { short: 'S', label: 'Saturday' },
+] as const
 
 function uniqueNames(names: string[]): string[] {
   const seen = new Set<string>()
@@ -397,9 +405,12 @@ export function CareCalendar({
 
       {zoom === 'month' && (
         <div className="cal-grid" role="grid" aria-label={monthLabel}>
-          {WEEKDAYS.map((day) => (
-            <div key={day} className="cal-grid__head">
-              {day}
+          {WEEKDAYS.map((day, index) => (
+            <div key={`${day.label}-${index}`} className="cal-grid__head" title={day.label}>
+              <span className="cal-grid__head-full">{day.label.slice(0, 3)}</span>
+              <span className="cal-grid__head-short" aria-label={day.label}>
+                {day.short}
+              </span>
             </div>
           ))}
           {weeks.flatMap((week, wi) =>
