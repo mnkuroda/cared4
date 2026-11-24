@@ -597,7 +597,7 @@ export function CareCalendar({
 
       <div className="cal-legend">
         <span>
-          <i className="dot dot--open" /> Open
+          <i className="dot dot--open" /> All open
         </span>
         <span>
           <i className="dot dot--partial" /> Partly done
