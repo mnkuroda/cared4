@@ -19,7 +19,6 @@ interface CareCalendarProps {
   onCheckIn: () => void
 }
 
-type CalendarMode = 'status' | 'people'
 type CalendarZoom = 'month' | 'week' | 'day'
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -57,6 +56,18 @@ function shiftDateKey(dateKey: string, days: number): string {
   return toDateKey(date)
 }
 
+function slotStatusLabel(openCount: number, assigneeCount: number): string {
+  const care =
+    openCount > 0 ? (openCount === 1 ? '1 open' : `${openCount} open`) : 'All done'
+  const people =
+    assigneeCount > 0
+      ? assigneeCount === 1
+        ? '1 assigned'
+        : `${assigneeCount} assigned`
+      : 'Unassigned'
+  return `${people} · ${care}`
+}
+
 function PersonChip({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
   const color = personColor(name)
   return (
@@ -74,11 +85,9 @@ function PersonChip({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' })
 }
 
 function DaySlotList({
-  mode,
   slotStatuses,
   dayAssignments,
 }: {
-  mode: CalendarMode
   slotStatuses: DaySlotStatus[]
   dayAssignments: Assignment[]
 }) {
@@ -101,51 +110,40 @@ function DaySlotList({
           >
             <div className="cal-slot__time">
               <strong>{formatSlotTime(slot.time)}</strong>
-              <span>
-                {mode === 'people'
-                  ? assignees.length > 0
-                    ? `${assignees.length} assigned`
-                    : 'Unassigned'
-                  : openCount > 0
-                    ? `${openCount} open`
-                    : 'All done'}
-              </span>
+              <span>{slotStatusLabel(openCount, assignees.length)}</span>
             </div>
-            {assignees.length > 0 && (
+            {assignees.length > 0 ? (
               <div className="cal-slot__people">
                 {assignees.map((name) => (
                   <PersonChip key={name} name={name} />
                 ))}
               </div>
+            ) : (
+              <p className="cal-slot__unassigned">No one assigned yet</p>
             )}
-            {mode === 'status' && (
-              <ul className="cal-slot__tasks">
-                {tasks.map((item) => (
-                  <li
-                    key={`${slot.id}-${item.task}`}
-                    className={item.done ? 'is-done' : 'is-open'}
-                  >
-                    <span>{item.task}</span>
-                    {item.done ? (
-                      <em>
-                        {item.by}
-                        {item.at
-                          ? ` · ${new Date(item.at).toLocaleTimeString(undefined, {
-                              hour: 'numeric',
-                              minute: '2-digit',
-                            })}`
-                          : ''}
-                      </em>
-                    ) : (
-                      <em>Still open</em>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {mode === 'people' && (
-              <p className="cal-slot__tasks-line">{slot.tasks.join(' · ')}</p>
-            )}
+            <ul className="cal-slot__tasks">
+              {tasks.map((item) => (
+                <li
+                  key={`${slot.id}-${item.task}`}
+                  className={item.done ? 'is-done' : 'is-open'}
+                >
+                  <span>{item.task}</span>
+                  {item.done ? (
+                    <em>
+                      {item.by}
+                      {item.at
+                        ? ` · ${new Date(item.at).toLocaleTimeString(undefined, {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                          })}`
+                        : ''}
+                    </em>
+                  ) : (
+                    <em>Still open</em>
+                  )}
+                </li>
+              ))}
+            </ul>
           </li>
         )
       })}
@@ -155,7 +153,6 @@ function DaySlotList({
 
 export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCalendarProps) {
   const todayKey = toDateKey(new Date())
-  const [mode, setMode] = useState<CalendarMode>('people')
   const [zoom, setZoom] = useState<CalendarZoom>('week')
   const [cursor, setCursor] = useState(() => {
     const now = new Date()
@@ -287,7 +284,7 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
             Add a trip under Schedule to show care times on the calendar.
           </p>
         ) : (
-          <DaySlotList mode={mode} slotStatuses={statuses} dayAssignments={assigns} />
+          <DaySlotList slotStatuses={statuses} dayAssignments={assigns} />
         )}
 
         {trip && (
@@ -305,33 +302,8 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
     <section className="panel calendar">
       <header className="panel__header">
         <h2>Care calendar</h2>
-        <p>
-          {mode === 'people'
-            ? 'See who is covering each day and care time.'
-            : 'See open care times and what is already logged.'}
-        </p>
+        <p>See who is covering each care time and what is still open.</p>
       </header>
-
-      <div className="mode-toggle cal-mode" role="tablist" aria-label="Calendar focus">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === 'people'}
-          className={mode === 'people' ? 'is-active' : undefined}
-          onClick={() => setMode('people')}
-        >
-          Who&apos;s on
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === 'status'}
-          className={mode === 'status' ? 'is-active' : undefined}
-          onClick={() => setMode('status')}
-        >
-          Care status
-        </button>
-      </div>
 
       <div className="mode-toggle cal-zoom" role="tablist" aria-label="Calendar zoom">
         <button
@@ -396,12 +368,12 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
                   type="button"
                   className={[
                     'cal-cell',
-                    mode === 'people' ? 'cal-cell--people' : undefined,
+                    'cal-cell--people',
                     inTrip ? 'cal-cell--trip' : undefined,
                     isSelected ? 'is-selected' : undefined,
                     isToday ? 'is-today' : undefined,
-                    mode === 'status' && summary !== 'none' ? `is-${summary}` : undefined,
-                    mode === 'people' && people.length > 0 ? 'has-people' : undefined,
+                    summary !== 'none' ? `is-${summary}` : undefined,
+                    people.length > 0 ? 'has-people' : undefined,
                   ]
                     .filter(Boolean)
                     .join(' ')}
@@ -411,10 +383,10 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
                   aria-label={parseDateKey(dateKey).toLocaleDateString()}
                 >
                   <span className="cal-cell__day">{Number(dateKey.slice(-2))}</span>
-                  {mode === 'status' && summary !== 'none' && (
+                  {summary !== 'none' && (
                     <span className="cal-cell__dot" aria-hidden="true" />
                   )}
-                  {mode === 'people' && people.length > 0 && (
+                  {people.length > 0 && (
                     <span className="cal-cell__avatars" aria-hidden="true">
                       {people.slice(0, 3).map((name) => {
                         const color = personColor(name)
@@ -445,6 +417,7 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
             const isSelected = dateKey === selectedKey
             const isToday = dateKey === todayKey
             const assigns = assignmentsByDay.get(dateKey) ?? []
+            const summary = daySummary(dateKey)
             return (
               <article
                 key={dateKey}
@@ -453,6 +426,7 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
                   isSelected ? 'is-selected' : undefined,
                   isToday ? 'is-today' : undefined,
                   trip ? 'has-trip' : undefined,
+                  summary !== 'none' ? `is-${summary}` : undefined,
                 ]
                   .filter(Boolean)
                   .join(' ')}
@@ -497,33 +471,39 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
                           .map((item) => item.personName),
                       )
                       const status = daySlotStatuses([slot], checkIns, dateKey)[0]
+                      const openCount = status?.openCount ?? 0
                       return (
-                        <li key={slot.id} className="week-slot">
+                        <li
+                          key={slot.id}
+                          className={
+                            openCount > 0 ? 'week-slot is-open' : 'week-slot is-done'
+                          }
+                        >
                           <div className="week-slot__meta">
                             <strong>{formatSlotTime(slot.time)}</strong>
-                            {mode === 'status' && status && (
-                              <span>
-                                {status.openCount > 0
-                                  ? `${status.openCount} open`
-                                  : 'Done'}
-                              </span>
-                            )}
+                            <span>{slotStatusLabel(openCount, names.length)}</span>
                           </div>
-                          {mode === 'people' ? (
-                            names.length === 0 ? (
-                              <em className="week-slot__open">Unassigned</em>
-                            ) : (
-                              <div className="week-slot__people">
-                                {names.map((name) => (
-                                  <PersonChip key={name} name={name} size="sm" />
-                                ))}
-                              </div>
-                            )
+                          {names.length === 0 ? (
+                            <em className="week-slot__open">Unassigned</em>
                           ) : (
-                            <p className="week-slot__tasks">{slot.tasks.join(' · ')}</p>
+                            <div className="week-slot__people">
+                              {names.map((name) => (
+                                <PersonChip key={name} name={name} size="sm" />
+                              ))}
+                            </div>
                           )}
-                          {mode === 'people' && (
-                            <p className="week-slot__tasks">{slot.tasks.join(' · ')}</p>
+                          {status && (
+                            <ul className="week-slot__task-list">
+                              {status.tasks.map((item) => (
+                                <li
+                                  key={`${slot.id}-${item.task}`}
+                                  className={item.done ? 'is-done' : 'is-open'}
+                                >
+                                  <span>{item.task}</span>
+                                  <em>{item.done ? item.by ?? 'Done' : 'Open'}</em>
+                                </li>
+                              ))}
+                            </ul>
                           )}
                         </li>
                       )
@@ -536,27 +516,25 @@ export function CareCalendar({ trips, checkIns, assignments, onCheckIn }: CareCa
         </div>
       )}
 
-      {mode === 'status' ? (
-        <div className="cal-legend" aria-hidden="true">
-          <span>
-            <i className="dot dot--open" /> Open
-          </span>
-          <span>
-            <i className="dot dot--partial" /> Partly done
-          </span>
-          <span>
-            <i className="dot dot--done" /> Complete
-          </span>
-        </div>
-      ) : (
-        <div className="cal-legend cal-legend--people">
-          {helperLegend.length === 0 ? (
-            <span>No helpers assigned yet — add them under Schedule.</span>
-          ) : (
-            helperLegend.map((name) => <PersonChip key={name} name={name} />)
-          )}
-        </div>
-      )}
+      <div className="cal-legend">
+        <span>
+          <i className="dot dot--open" /> Open
+        </span>
+        <span>
+          <i className="dot dot--partial" /> Partly done
+        </span>
+        <span>
+          <i className="dot dot--done" /> Complete
+        </span>
+      </div>
+
+      <div className="cal-legend cal-legend--people">
+        {helperLegend.length === 0 ? (
+          <span>No helpers assigned yet — add them under Schedule.</span>
+        ) : (
+          helperLegend.map((name) => <PersonChip key={name} name={name} />)
+        )}
+      </div>
 
       {zoom === 'day' ? (
         renderDayDetail(selectedKey)

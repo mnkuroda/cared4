@@ -762,11 +762,6 @@ textarea {
   font-size: 0.95rem;
 }
 
-.cal-mode,
-.cal-zoom {
-  margin-bottom: 0.75rem;
-}
-
 .cal-zoom {
   margin-bottom: 1rem;
 }
@@ -931,6 +926,50 @@ textarea {
   word-break: break-word;
 }
 
+.week-slot.is-open {
+  border-color: rgba(212, 146, 58, 0.55);
+  background: rgba(212, 146, 58, 0.08);
+}
+
+.week-slot.is-done {
+  border-color: rgba(42, 107, 78, 0.35);
+  background: rgba(42, 107, 78, 0.08);
+}
+
+.week-slot__task-list {
+  list-style: none;
+  margin: 0.15rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.week-slot__task-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.4rem;
+  align-items: baseline;
+  font-size: 0.78rem;
+  min-width: 0;
+}
+
+.week-slot__task-list li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.week-slot__task-list em {
+  font-style: normal;
+  color: var(--ink-soft);
+  flex-shrink: 0;
+}
+
+.week-slot__task-list li.is-done span {
+  color: var(--forest-deep);
+}
+
 .week-day__zoom {
   flex-shrink: 0;
   padding: 0.3rem 0.65rem;
@@ -1092,6 +1131,12 @@ textarea {
   flex-wrap: wrap;
   gap: 0.35rem;
   margin-bottom: 0.55rem;
+}
+
+.cal-slot__unassigned {
+  margin: 0 0 0.55rem;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
 }
 
 .cal-slot__tasks-line {
