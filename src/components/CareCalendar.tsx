@@ -74,16 +74,10 @@ function shiftDateKey(dateKey: string, days: number): string {
   return toDateKey(date)
 }
 
-function slotStatusLabel(openCount: number, assigneeCount: number): string {
-  const care =
-    openCount > 0 ? (openCount === 1 ? '1 open' : `${openCount} open`) : 'All done'
-  const people =
-    assigneeCount > 0
-      ? assigneeCount === 1
-        ? '1 assigned'
-        : `${assigneeCount} assigned`
-      : 'Unassigned'
-  return `${people} · ${care}`
+function coverageLabel(assigneeCount: number): string {
+  if (assigneeCount === 0) return 'Needs helper'
+  if (assigneeCount === 1) return '1 signed up'
+  return `${assigneeCount} signed up`
 }
 
 function PersonChip({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
@@ -109,7 +103,7 @@ function DaySlotList({
 }: {
   slotStatuses: DaySlotStatus[]
   dayAssignments: Assignment[]
-  onClaimRoutine: (time: string, openTasks: string[]) => void
+  onClaimRoutine: (time: string, tasks: string[]) => void
 }) {
   if (slotStatuses.length === 0) {
     return <p className="empty">This trip has no daily care times yet.</p>
@@ -117,62 +111,47 @@ function DaySlotList({
 
   return (
     <ul className="cal-slots">
-      {slotStatuses.map(({ slot, tasks, openCount }) => {
+      {slotStatuses.map(({ slot, tasks }) => {
         const assignees = uniqueNames(
           dayAssignments
             .filter((item) => item.time === slot.time)
             .map((item) => item.personName),
         )
-        const openTasks = tasks.filter((item) => !item.done).map((item) => item.task)
+        const booked = assignees.length > 0
+        const taskNames = tasks.map((item) => item.task)
         return (
           <li
             key={slot.id}
-            className={openCount > 0 ? 'cal-slot is-open' : 'cal-slot is-done'}
+            className={booked ? 'cal-slot is-done' : 'cal-slot is-open'}
           >
             <div className="cal-slot__time">
               <div className="cal-slot__title">
                 <strong>{routineLabel(slot.time)}</strong>
                 <span className="cal-slot__clock">{formatSlotTime(slot.time)}</span>
               </div>
-              <span>{slotStatusLabel(openCount, assignees.length)}</span>
+              <span>{coverageLabel(assignees.length)}</span>
             </div>
-            {assignees.length > 0 ? (
+            {booked ? (
               <div className="cal-slot__people">
                 {assignees.map((name) => (
                   <PersonChip key={name} name={name} />
                 ))}
               </div>
             ) : (
-              <p className="cal-slot__unassigned">No one assigned yet</p>
+              <p className="cal-slot__unassigned">No one signed up yet</p>
             )}
             <ul className="cal-slot__details">
-              {tasks.map((item) => (
-                <li
-                  key={`${slot.id}-${item.task}`}
-                  className={item.done ? 'is-done' : 'is-open'}
-                >
-                  <span>{item.task}</span>
-                  {item.done ? (
-                    <em>
-                      {item.by}
-                      {item.at
-                        ? ` · ${new Date(item.at).toLocaleTimeString(undefined, {
-                            hour: 'numeric',
-                            minute: '2-digit',
-                          })}`
-                        : ''}
-                    </em>
-                  ) : (
-                    <em>Open</em>
-                  )}
+              {taskNames.map((task) => (
+                <li key={`${slot.id}-${task}`}>
+                  <span>{task}</span>
                 </li>
               ))}
             </ul>
-            {openTasks.length > 0 && (
+            {!booked && (
               <button
                 type="button"
                 className="btn btn--primary routine-claim"
-                onClick={() => onClaimRoutine(slot.time, openTasks)}
+                onClick={() => onClaimRoutine(slot.time, taskNames)}
               >
                 Assign this routine
               </button>
@@ -289,14 +268,16 @@ export function CareCalendar({
 
   function daySummary(dateKey: string): 'none' | 'open' | 'done' | 'partial' {
     const trip = activeTripOn(trips, dateKey)
-    if (!trip) return 'none'
-    const statuses = daySlotStatuses(trip.slots, checkIns, dateKey)
-    const open = statuses.reduce((n, s) => n + s.openCount, 0)
-    const done = statuses.reduce((n, s) => n + s.doneCount, 0)
-    if (done === 0 && open > 0) return 'open'
-    if (open === 0 && done > 0) return 'done'
-    if (open > 0 && done > 0) return 'partial'
-    return 'open'
+    if (!trip || trip.slots.length === 0) return 'none'
+    const dayAssigns = assignmentsByDay.get(dateKey) ?? []
+    let booked = 0
+    for (const slot of trip.slots) {
+      const covered = dayAssigns.some((item) => item.time === slot.time)
+      if (covered) booked += 1
+    }
+    if (booked === 0) return 'open'
+    if (booked === trip.slots.length) return 'done'
+    return 'partial'
   }
 
   function peopleForDay(dateKey: string): string[] {
@@ -305,7 +286,7 @@ export function CareCalendar({
 
   function openClaim(dateKey: string, time: string, tasks: string[]) {
     const trip = activeTripOn(trips, dateKey)
-    if (!trip || tasks.length === 0) return
+    if (!trip) return
     setSelectedKey(dateKey)
     setClaimTarget({
       dateKey,
@@ -360,7 +341,9 @@ export function CareCalendar({
     <section className="panel calendar">
       <header className="panel__header">
         <h2>Care calendar</h2>
-        <p>Each care time is one visit. Assign the whole routine, with tasks listed as details.</p>
+        <p>
+          Green means every visit is covered, orange is partly covered, red still needs a helper.
+        </p>
       </header>
 
       <div className="mode-toggle cal-zoom" role="tablist" aria-label="Calendar zoom">
@@ -532,17 +515,12 @@ export function CareCalendar({
                           .map((item) => item.personName),
                       )
                       const status = daySlotStatuses([slot], checkIns, dateKey)[0]
-                      const openCount = status?.openCount ?? 0
-                      const openTasks =
-                        status?.tasks
-                          .filter((item) => !item.done)
-                          .map((item) => item.task) ?? []
+                      const taskNames = status?.tasks.map((item) => item.task) ?? slot.tasks
+                      const booked = names.length > 0
                       return (
                         <li
                           key={slot.id}
-                          className={
-                            openCount > 0 ? 'week-slot is-open' : 'week-slot is-done'
-                          }
+                          className={booked ? 'week-slot is-done' : 'week-slot is-open'}
                         >
                           <div className="week-slot__meta">
                             <div className="week-slot__title">
@@ -551,35 +529,29 @@ export function CareCalendar({
                                 {formatSlotTime(slot.time)}
                               </span>
                             </div>
-                            <span>{slotStatusLabel(openCount, names.length)}</span>
+                            <span>{coverageLabel(names.length)}</span>
                           </div>
-                          {names.length === 0 ? (
-                            <em className="week-slot__open">Unassigned</em>
-                          ) : (
+                          {booked ? (
                             <div className="week-slot__people">
                               {names.map((name) => (
                                 <PersonChip key={name} name={name} size="sm" />
                               ))}
                             </div>
+                          ) : (
+                            <em className="week-slot__open">Needs helper</em>
                           )}
-                          {status && (
-                            <ul className="week-slot__details">
-                              {status.tasks.map((item) => (
-                                <li
-                                  key={`${slot.id}-${item.task}`}
-                                  className={item.done ? 'is-done' : 'is-open'}
-                                >
-                                  <span>{item.task}</span>
-                                  <em>{item.done ? item.by ?? 'Done' : 'Open'}</em>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                          {openTasks.length > 0 && (
+                          <ul className="week-slot__details">
+                            {taskNames.map((task) => (
+                              <li key={`${slot.id}-${task}`}>
+                                <span>{task}</span>
+                              </li>
+                            ))}
+                          </ul>
+                          {!booked && (
                             <button
                               type="button"
                               className="btn btn--primary routine-claim routine-claim--compact"
-                              onClick={() => openClaim(dateKey, slot.time, openTasks)}
+                              onClick={() => openClaim(dateKey, slot.time, taskNames)}
                             >
                               Assign routine
                             </button>
@@ -597,13 +569,13 @@ export function CareCalendar({
 
       <div className="cal-legend">
         <span>
-          <i className="dot dot--open" /> All open
+          <i className="dot dot--open" /> Needs helper
         </span>
         <span>
-          <i className="dot dot--partial" /> Partly done
+          <i className="dot dot--partial" /> Partly covered
         </span>
         <span>
-          <i className="dot dot--done" /> Complete
+          <i className="dot dot--done" /> Fully covered
         </span>
       </div>
 

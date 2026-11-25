@@ -1018,13 +1018,13 @@ textarea {
 }
 
 .week-slot.is-open {
-  border-color: rgba(212, 146, 58, 0.55);
-  background: rgba(212, 146, 58, 0.08);
+  border-color: rgba(194, 75, 58, 0.5);
+  background: var(--care-open-bg);
 }
 
 .week-slot.is-done {
-  border-color: rgba(42, 107, 78, 0.35);
-  background: rgba(42, 107, 78, 0.08);
+  border-color: rgba(42, 107, 78, 0.45);
+  background: var(--care-done-bg);
 }
 
 .week-slot__details,
@@ -1464,13 +1464,13 @@ textarea {
 }
 
 .cal-slot.is-open {
-  border-color: rgba(212, 146, 58, 0.55);
-  background: rgba(212, 146, 58, 0.08);
+  border-color: rgba(194, 75, 58, 0.5);
+  background: var(--care-open-bg);
 }
 
 .cal-slot.is-done {
-  border-color: rgba(42, 107, 78, 0.35);
-  background: rgba(42, 107, 78, 0.08);
+  border-color: rgba(42, 107, 78, 0.45);
+  background: var(--care-done-bg);
 }
 
 .cal-slot__time {

@@ -141,7 +141,7 @@ export function ClaimOpenTask({
             {saving ? 'Saving…' : 'Assign this routine'}
           </button>
           <p className="claim-sheet__hint">
-            Puts this visit under your name and marks all open tasks in it done.
+            Signs you up for this visit. Log care later when you actually do it.
           </p>
         </form>
       </div>
